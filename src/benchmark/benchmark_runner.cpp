@@ -76,13 +76,50 @@ std::vector<BenchmarkCase> BenchmarkRunner::simMatrix() {
     return cases;
 }
 
+std::vector<BenchmarkCase> BenchmarkRunner::gpuMatrix() {
+    std::vector<BenchmarkCase> cases;
+    const std::vector<std::size_t> particle_counts = {10000, 100000, 1000000};
+    const std::vector<int> grids = {64, 128, 256};
+    const std::vector<DepositionScheme> schemes = {DepositionScheme::NGP, DepositionScheme::CIC,
+                                                   DepositionScheme::TSC};
+    const std::vector<DepositionBackend> backends = {DepositionBackend::CPU, DepositionBackend::GPUAtomics,
+                                                     DepositionBackend::GPUPrivatized};
+
+    for (std::size_t np : particle_counts) {
+        for (int g : grids) {
+            for (auto scheme : schemes) {
+                for (auto backend : backends) {
+                    if (backend == DepositionBackend::GPUPrivatized && scheme != DepositionScheme::CIC) {
+                        continue;
+                    }
+                    BenchmarkCase c;
+                    c.num_particles = np;
+                    c.grid_n = g;
+                    c.scheme = scheme;
+                    c.layout = ParticleLayout::SoA;
+                    c.sorted = false;
+                    c.backend = backend;
+                    c.num_threads = 1;
+                    c.repeats = 5;
+                    c.measure_spectral_noise = (np == 100000 && g == 128 && backend == DepositionBackend::CPU);
+                    cases.push_back(c);
+                }
+            }
+        }
+    }
+    return cases;
+}
+
 std::vector<BenchmarkCase> BenchmarkRunner::defaultMatrix(bool include_gpu) {
     auto cases = quickMatrix();
-    if (include_gpu) {
 #ifdef PIC_BUILD_CUDA
-        (void)cases;
-#endif
+    if (include_gpu) {
+        auto gpu_cases = gpuMatrix();
+        cases.insert(cases.end(), gpu_cases.begin(), gpu_cases.end());
     }
+#else
+    (void)include_gpu;
+#endif
     return cases;
 }
 
@@ -157,8 +194,8 @@ std::vector<BenchmarkRow> BenchmarkRunner::runAll() const {
         row.spectral_noise = spectral_noise;
 
         if (baseline_ms <= 0.0 && c.num_threads == 1 && c.backend == DepositionBackend::CPU && !c.sorted &&
-            c.layout == ParticleLayout::SoA && c.scheme == DepositionScheme::CIC && c.grid_n == 64 &&
-            c.num_particles == 10000) {
+            c.layout == ParticleLayout::SoA && c.scheme == DepositionScheme::CIC && c.grid_n == 128 &&
+            c.num_particles == 100000) {
             baseline_ms = stats.deposit_ms;
         }
         row.speedup = baseline_ms > 0.0 ? baseline_ms / std::max(stats.deposit_ms, 1e-12) : 1.0;

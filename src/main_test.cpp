@@ -45,11 +45,38 @@ bool testSchemeChargeConservation(pic::DepositionScheme scheme) {
 
 }  // namespace
 
+#ifdef PIC_BUILD_CUDA
+bool testGpuCicDeposit() {
+    pic::Domain domain;
+    domain.Nx = 32;
+    domain.Ny = 32;
+    domain.updateDerived();
+    pic::FieldGrid grid(domain);
+    pic::ParticlesSoA particles(1000);
+    particles.initializeUniformMaxwellian(domain, 1.0, 123);
+
+    pic::DepositionConfig cfg;
+    cfg.scheme = pic::DepositionScheme::CIC;
+    cfg.layout = pic::ParticleLayout::SoA;
+    cfg.backend = pic::DepositionBackend::GPUAtomics;
+    pic::depositChargeSoA(particles, grid, cfg);
+
+    const double charge_error =
+        pic::chargeConservationError(grid.integratedRho(), particles.totalCharge(),
+                                     std::accumulate(particles.q().begin(), particles.q().end(), 0.0,
+                                                     [](double s, double q) { return s + std::abs(q); }));
+    return expectNear(charge_error, 0.0, 1e-10, "GPU CIC charge conservation");
+}
+#endif
+
 int main() {
     bool ok = true;
     ok &= testSchemeChargeConservation(pic::DepositionScheme::CIC);
     ok &= testSchemeChargeConservation(pic::DepositionScheme::TSC);
     ok &= testSchemeChargeConservation(pic::DepositionScheme::Esirkepov);
     ok &= testSchemeChargeConservation(pic::DepositionScheme::NGP);
+#ifdef PIC_BUILD_CUDA
+    ok &= testGpuCicDeposit();
+#endif
     return ok ? 0 : 1;
 }

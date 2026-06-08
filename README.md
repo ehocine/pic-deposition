@@ -40,6 +40,26 @@ bash scripts/run_all_benchmarks.sh
 
 Results are written to `results/` and archived to `data/benchmarks/`.
 
+GPU deposition benchmarks (CPU vs `GPU_Atomics` vs `GPU_Priv`):
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_CUDA=ON
+cmake --build build -j
+./build/pic_benchmark --gpu
+```
+
+## Kaggle (free GPU)
+
+1. Create a Kaggle notebook and enable **GPU** (Settings → Accelerator → GPU T4).
+2. Attach this repo as a [Dataset](https://www.kaggle.com/docs/datasets) or clone from GitHub.
+3. Run:
+
+```bash
+bash scripts/kaggle_gpu_benchmark.sh
+```
+
+Or paste the script cells into the notebook. Results are saved to `data/benchmarks/benchmark_gpu.csv`.
+
 ## Regenerate Paper Figures
 
 ```bash

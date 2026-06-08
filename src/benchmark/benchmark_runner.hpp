@@ -47,6 +47,7 @@ public:
 
     static std::vector<BenchmarkCase> quickMatrix();
     static std::vector<BenchmarkCase> simMatrix();
+    static std::vector<BenchmarkCase> gpuMatrix();
     static std::vector<BenchmarkCase> defaultMatrix(bool include_gpu);
 
 private:

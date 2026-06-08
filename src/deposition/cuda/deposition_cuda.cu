@@ -3,8 +3,8 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <stdexcept>
-#include <vector>
 
 namespace pic {
 
@@ -107,32 +107,29 @@ __device__ void depositTSC(double q, double x, double y, double dx, double dy, d
     }
 }
 
-__device__ void depositEsirkepovStatic(double q, double x, double y, double dx, double dy, double inv_vol, int nx,
-                                       int ny, double* rho, bool use_atomics) {
-    depositCIC(q, x, y, dx, dy, inv_vol, nx, ny, rho, use_atomics);
+__device__ void depositByScheme(int scheme, double q, double x, double y, double dx, double dy, double inv_vol, int nx,
+                                int ny, double* rho, bool use_atomics) {
+    switch (scheme) {
+        case 0:
+            depositNGP(q, x, y, dx, dy, inv_vol, nx, ny, rho, use_atomics);
+            break;
+        case 1:
+            depositCIC(q, x, y, dx, dy, inv_vol, nx, ny, rho, use_atomics);
+            break;
+        case 2:
+            depositTSC(q, x, y, dx, dy, inv_vol, nx, ny, rho, use_atomics);
+            break;
+        default:
+            depositCIC(q, x, y, dx, dy, inv_vol, nx, ny, rho, use_atomics);
+            break;
+    }
 }
 
 __global__ void depositKernelSoA(const double* x, const double* y, const double* q, int num_particles, int nx, int ny,
                                  double dx, double dy, double inv_vol, int scheme, bool use_atomics, double* rho) {
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_particles) return;
-    const double px = x[idx];
-    const double py = y[idx];
-    const double pq = q[idx];
-    switch (scheme) {
-        case 0:
-            depositNGP(pq, px, py, dx, dy, inv_vol, nx, ny, rho, use_atomics);
-            break;
-        case 1:
-            depositCIC(pq, px, py, dx, dy, inv_vol, nx, ny, rho, use_atomics);
-            break;
-        case 2:
-            depositTSC(pq, px, py, dx, dy, inv_vol, nx, ny, rho, use_atomics);
-            break;
-        default:
-            depositEsirkepovStatic(pq, px, py, dx, dy, inv_vol, nx, ny, rho, use_atomics);
-            break;
-    }
+    depositByScheme(scheme, q[idx], x[idx], y[idx], dx, dy, inv_vol, nx, ny, rho, use_atomics);
 }
 
 __global__ void depositKernelPrivatized(const double* x, const double* y, const double* q, int num_particles, int nx,
@@ -147,16 +144,55 @@ __global__ void depositKernelPrivatized(const double* x, const double* y, const 
     __syncthreads();
 
     for (int p = blockIdx.x; p < num_particles; p += gridDim.x) {
-        const double px = x[p];
-        const double py = y[p];
-        const double pq = q[p];
-        depositCIC(pq, px, py, dx, dy, inv_vol, nx, ny, tile_rho, false);
+        depositByScheme(scheme, q[p], x[p], y[p], dx, dy, inv_vol, nx, ny, tile_rho, false);
     }
     __syncthreads();
 
     if (tid < tile_cells) {
         atomicAdd(rho_global + tid, tile_rho[tid]);
     }
+}
+
+struct GpuBufferPool {
+    double* d_x = nullptr;
+    double* d_y = nullptr;
+    double* d_q = nullptr;
+    double* d_rho = nullptr;
+    std::size_t particle_cap = 0;
+    std::size_t grid_cap = 0;
+
+    void freeAll() {
+        if (d_x) cudaFree(d_x);
+        if (d_y) cudaFree(d_y);
+        if (d_q) cudaFree(d_q);
+        if (d_rho) cudaFree(d_rho);
+        d_x = d_y = d_q = d_rho = nullptr;
+        particle_cap = 0;
+        grid_cap = 0;
+    }
+
+    void ensureParticles(std::size_t num_particles) {
+        if (num_particles <= particle_cap) return;
+        if (d_x) cudaFree(d_x);
+        if (d_y) cudaFree(d_y);
+        if (d_q) cudaFree(d_q);
+        CUDA_CHECK(cudaMalloc(&d_x, num_particles * sizeof(double)));
+        CUDA_CHECK(cudaMalloc(&d_y, num_particles * sizeof(double)));
+        CUDA_CHECK(cudaMalloc(&d_q, num_particles * sizeof(double)));
+        particle_cap = num_particles;
+    }
+
+    void ensureGrid(std::size_t n) {
+        if (n <= grid_cap) return;
+        if (d_rho) cudaFree(d_rho);
+        CUDA_CHECK(cudaMalloc(&d_rho, n * sizeof(double)));
+        grid_cap = n;
+    }
+};
+
+GpuBufferPool& bufferPool() {
+    static GpuBufferPool pool;
+    return pool;
 }
 
 int schemeToInt(DepositionScheme scheme) {
@@ -177,44 +213,39 @@ void launchDeposition(const ParticlesSoA& particles, FieldGrid& grid, const Depo
     const int n = domain.Nx * domain.Ny;
     const int num_particles = static_cast<int>(particles.size());
     const double inv_vol = 1.0 / domain.cellVolume();
+    const std::size_t np = static_cast<std::size_t>(num_particles);
+    const std::size_t grid_cells = static_cast<std::size_t>(n);
 
-    double *d_x, *d_y, *d_q, *d_rho;
-    CUDA_CHECK(cudaMalloc(&d_x, static_cast<std::size_t>(num_particles) * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_y, static_cast<std::size_t>(num_particles) * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_q, static_cast<std::size_t>(num_particles) * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_rho, static_cast<std::size_t>(n) * sizeof(double)));
+    auto& pool = bufferPool();
+    pool.ensureParticles(np);
+    pool.ensureGrid(grid_cells);
 
-    CUDA_CHECK(cudaMemcpy(d_x, particles.x().data(), static_cast<std::size_t>(num_particles) * sizeof(double),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_y, particles.y().data(), static_cast<std::size_t>(num_particles) * sizeof(double),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_q, particles.q().data(), static_cast<std::size_t>(num_particles) * sizeof(double),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemset(d_rho, 0, static_cast<std::size_t>(n) * sizeof(double)));
+    CUDA_CHECK(cudaMemcpy(pool.d_x, particles.x().data(), np * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(pool.d_y, particles.y().data(), np * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(pool.d_q, particles.q().data(), np * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(pool.d_rho, 0, grid_cells * sizeof(double)));
 
     const int threads = 256;
     const int blocks = (num_particles + threads - 1) / threads;
     const int scheme = schemeToInt(config.scheme);
     const bool use_atomics = config.backend == DepositionBackend::GPUAtomics;
+    const bool use_privatized = config.backend == DepositionBackend::GPUPrivatized && domain.Nx == domain.Ny &&
+                                domain.Nx <= 256;
 
-    if (config.backend == DepositionBackend::GPUPrivatized && domain.Nx == domain.Ny && domain.Nx <= 256) {
+    if (use_privatized) {
         dim3 block(16, 16);
         const int tile_cells = domain.Nx * domain.Ny;
         depositKernelPrivatized<<<1, block, static_cast<std::size_t>(tile_cells) * sizeof(double)>>>(
-            d_x, d_y, d_q, num_particles, domain.Nx, domain.Ny, domain.dx, domain.dy, inv_vol, scheme, domain.Nx,
-            domain.Ny, d_rho);
+            pool.d_x, pool.d_y, pool.d_q, num_particles, domain.Nx, domain.Ny, domain.dx, domain.dy, inv_vol, scheme,
+            domain.Nx, domain.Ny, pool.d_rho);
     } else {
-        depositKernelSoA<<<blocks, threads>>>(d_x, d_y, d_q, num_particles, domain.Nx, domain.Ny, domain.dx,
-                                              domain.dy, inv_vol, scheme, use_atomics, d_rho);
+        depositKernelSoA<<<blocks, threads>>>(pool.d_x, pool.d_y, pool.d_q, num_particles, domain.Nx, domain.Ny,
+                                              domain.dx, domain.dy, inv_vol, scheme, use_atomics, pool.d_rho);
     }
 
     CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaMemcpy(grid.rho().data(), d_rho, static_cast<std::size_t>(n) * sizeof(double), cudaMemcpyDeviceToHost));
-
-    cudaFree(d_x);
-    cudaFree(d_y);
-    cudaFree(d_q);
-    cudaFree(d_rho);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(grid.rho().data(), pool.d_rho, grid_cells * sizeof(double), cudaMemcpyDeviceToHost));
 }
 
 }  // namespace

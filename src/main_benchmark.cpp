@@ -60,8 +60,15 @@ int main(int argc, char** argv) {
         std::vector<pic::BenchmarkCase> cases;
         if (sim) {
             cases = pic::BenchmarkRunner::simMatrix();
+        } else if (include_gpu) {
+#ifndef PIC_BUILD_CUDA
+            std::cerr << "Error: rebuild with -DBUILD_CUDA=ON to run GPU benchmarks.\n";
+            return 1;
+#else
+            cases = pic::BenchmarkRunner::gpuMatrix();
+#endif
         } else if (full) {
-            cases = pic::BenchmarkRunner::defaultMatrix(include_gpu);
+            cases = pic::BenchmarkRunner::defaultMatrix(false);
         } else {
             cases = pic::BenchmarkRunner::quickMatrix();
         }

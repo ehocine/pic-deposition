@@ -105,14 +105,30 @@ DepositionStats finalizeStats(const DepositionConfig& config, std::size_t num_pa
 
 void depositKernelAoS(const ParticlesAoS& particles, FieldGrid& grid, const DepositionConfig& config) {
     grid.clearRho();
-    setThreadCount(config.num_threads);
-    depositCpuAoS(particles, grid, config);
+    if (config.backend == DepositionBackend::CPU) {
+        setThreadCount(config.num_threads);
+        depositCpuAoS(particles, grid, config);
+        return;
+    }
+#ifdef PIC_BUILD_CUDA
+    depositChargeCudaAoS(particles, grid, config);
+#else
+    throw std::runtime_error("CUDA backend requested but project was built without BUILD_CUDA=ON");
+#endif
 }
 
 void depositKernelSoA(const ParticlesSoA& particles, FieldGrid& grid, const DepositionConfig& config) {
     grid.clearRho();
-    setThreadCount(config.num_threads);
-    depositCpuSoA(particles, grid, config);
+    if (config.backend == DepositionBackend::CPU) {
+        setThreadCount(config.num_threads);
+        depositCpuSoA(particles, grid, config);
+        return;
+    }
+#ifdef PIC_BUILD_CUDA
+    depositChargeCudaSoA(particles, grid, config);
+#else
+    throw std::runtime_error("CUDA backend requested but project was built without BUILD_CUDA=ON");
+#endif
 }
 
 }  // namespace
