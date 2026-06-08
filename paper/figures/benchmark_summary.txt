@@ -1,0 +1,13 @@
+Benchmark summary (128 grid, 1e5 particles, SoA sorted):
+
+- NGP: sort=2.398 ms, deposit=1.992 ms, throughput=5.02e+07, charge_error=0.00e+00
+- CIC: sort=2.282 ms, deposit=0.589 ms, throughput=1.70e+08, charge_error=1.16e-17
+- TSC: sort=2.377 ms, deposit=0.902 ms, throughput=1.11e+08, charge_error=1.36e-18
+- Esirkepov: sort=2.332 ms, deposit=4.329 ms, throughput=2.31e+07, charge_error=1.03e-03
+
+Validation summary:
+
+- NGP: spectral_noise=0.6100, omega_meas=0.1221, passed=1
+- CIC: spectral_noise=0.3881, omega_meas=0.1221, passed=1
+- TSC: spectral_noise=0.2572, omega_meas=0.1221, passed=1
+- Esirkepov: spectral_noise=0.3881, omega_meas=0.1221, passed=1

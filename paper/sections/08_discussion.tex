@@ -1,0 +1,36 @@
+\section{Discussion}
+
+\subsection{Scheme Selection}
+NGP minimizes deposit-kernel time but exhibits the highest spectral noise (0.61) and largest 500-step energy drift.
+CIC provides the best accuracy--performance balance on CPU: fastest deposit-kernel time at moderate $N_p$, noise reduced by 36\%, and energy drift an order of magnitude lower than NGP.
+TSC further reduces noise to 0.26 at roughly $1.5\times$ the CIC kernel time.
+Esirkepov maintains trajectory-based charge conservation in full PIC cycles but remains $\sim 7\times$ slower than CIC at $N_p=10^5$ due to per-particle weight computation along crossed cells.
+
+\subsection{Memory Locality and Data Layout}
+Sorting improves spatial locality by clustering particles that share grid neighborhoods, but its $\mathcal{O}(N_p \log N_p)$ cost exceeds the deposit kernel at $N_p \leq 10^5$ when timed per deposition call.
+In full PIC cycles, sort cost can be amortized if particle order is preserved across steps or triggered periodically rather than every step.
+SoA and AoS achieve comparable deposit-kernel throughput on Apple Silicon; SoA's advantage in unit-stride attribute reads is partially offset by the higher cost of SoA reordering.
+The choice of layout should therefore be guided by the full timestep profile, not the deposit kernel alone.
+
+\subsection{Parallelism Limits}
+OpenMP privatization removes atomic contention and yields a $4.4\times$ speedup from one to eight threads for CIC, but scaling flattens beyond two threads.
+Each thread allocates a full-grid private buffer ($T \times N_x N_y$ doubles) and merges through a critical section, so merge cost and memory bandwidth become the bottleneck.
+GPU atomics versus privatized tiles remain to be benchmarked on NVIDIA hardware where higher memory bandwidth and many lightweight threads may shift this balance.
+
+\section{Conclusion}
+We presented a unified, reproducible framework for evaluating charge deposition in 2D electrostatic PIC simulations.
+The codebase implements four deposition schemes behind a common runtime interface, separates sort from deposit timing, and couples performance benchmarks with charge, energy, spectral-noise, and Langmuir-wave validation.
+On Apple Silicon, CIC offers the strongest accuracy--performance trade-off for CPU production runs; layout choice depends on whether sort overhead or attribute-access patterns dominate the full timestep.
+Esirkepov is preferable when trajectory-based charge conservation is paramount and particle counts are moderate.
+NGP is viable only when raw kernel speed outweighs noise tolerance.
+
+\section{Future Work}
+Planned extensions include:
+\begin{itemize}
+    \item CUDA benchmarking of atomic and privatized-tile kernels on Linux clusters with cuFFT-coupled Poisson solves.
+    \item MPI domain decomposition with ghost-cell exchange to scale beyond shared memory.
+    \item 3D extension with face-aligned sorting and wider stencils.
+    \item Electromagnetic PIC with charge-conserving current deposition~\cite{decyk1996,wilke2017}.
+    \item Incremental and GPU-resident sorting to reduce per-step reorder overhead.
+    \item Absolute Langmuir-frequency calibration with corrected 2D plasma dispersion.
+\end{itemize}

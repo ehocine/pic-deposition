@@ -1,0 +1,51 @@
+\section{Introduction}
+Particle-In-Cell (PIC) methods combine Lagrangian macroparticles with Eulerian field representations and are widely used in kinetic plasma simulation~\cite{birdsall1991,hockney1988,dawson1983}.
+Each explicit timestep performs charge deposition, field solve, field gather, and particle push.
+Among these stages, charge deposition is frequently a bottleneck because it scatters particle contributions into a grid with irregular memory access patterns~\cite{viereck2016}.
+Prior studies have shown that shape-function choice controls grid noise and stability~\cite{langdon1970}, while charge-conserving deposition is essential for long-time accuracy~\cite{esirkepov2001,harvey2015}.
+
+This work presents a performance-oriented evaluation of deposition algorithms and cache-aware CPU implementations in a reproducible 2D electrostatic PIC framework.
+This paper reports CPU microbenchmarks and physics validation; GPU throughput evaluation is planned once CUDA hardware is available.
+We study NGP, CIC, TSC, and Esirkepov charge-conserving deposition~\cite{esirkepov2001}, along with particle sorting, AoS versus SoA layouts, and OpenMP parallelization with thread-local grid buffers.
+CUDA deposition kernels (atomics and privatized tiles) are included in the codebase but not benchmarked in this study.
+
+Our contributions are:
+\begin{itemize}
+    \item A reproducible 2D electrostatic PIC reference code with FFT-based Poisson solve and unified deposition interface.
+    \item A systematic comparison of four deposition schemes with charge, energy, and spectral-noise diagnostics.
+    \item Cache-aware CPU study separating sort cost from deposit-kernel throughput for AoS/SoA layouts.
+    \item Langmuir-wave validation and OpenMP privatization benchmarks on Apple Silicon.
+\end{itemize}
+
+\section{Mathematical Background}
+The continuous charge density is
+\begin{equation}
+    \rho(\mathbf{x}) = \sum_p q_p S(\mathbf{x}-\mathbf{x}_p),
+\end{equation}
+where $S$ is a compact shape function.
+Deposited charge must satisfy global conservation,
+\begin{equation}
+    \int \rho(\mathbf{x})\, dV = \sum_p q_p,
+\end{equation}
+otherwise nonphysical fields and instability can arise~\cite{brackbill1980}.
+We report conservation error normalized by $\sum_p |q_p|$ to handle charge-neutral plasmas.
+
+In the electrostatic limit,
+\begin{equation}
+    \nabla^2 \phi = -\frac{\rho}{\epsilon_0}, \qquad \mathbf{E} = -\nabla \phi.
+\end{equation}
+Energy is tracked as $W = \sum_p \frac{1}{2} m_p v_p^2 + \frac{1}{2}\int |\mathbf{E}|^2 dV$.
+
+Spectral noise is quantified by the high-$k$ power fraction of the deposited density field after a 2D FFT, with wavenumbers above one-third of the Nyquist limit classified as noise.
+
+\subsection{Langmuir Wave Validation Model}
+We validate linear physics with a cold Langmuir-wave test.
+Macroparticles carry charge $q_p = -1/N_p$ on a uniform 1D-like slab at fixed $y$, with a neutralizing background density $\rho_{\mathrm{bg}} = 1/(L_x L_y)$ added after each deposition.
+A sinusoidal velocity perturbation $v_x(x) = \delta v \sin(kx)$ is imposed at initialization with $k = 2\pi m / L_x$.
+In normalized units ($m=1$), the macro-particle plasma frequency is
+\begin{equation}
+    \omega_{p,\mathrm{macro}} = \sqrt{\frac{N_p}{L_x L_y}\left(\frac{1}{N_p}\right)^2} = \frac{1}{\sqrt{N_p L_x L_y}}.
+\end{equation}
+The dominant oscillation frequency $\omega_{\mathrm{meas}}$ is extracted from field-energy time series by discrete Fourier analysis.
+The primary validation metric is \emph{inter-scheme agreement}: all deposition schemes should yield the same $\omega_{\mathrm{meas}}$ within 5\%.
+We additionally report $\omega_{\mathrm{meas}}/\omega_{p,\mathrm{macro}}$ to document the systematic offset introduced by the 2D field-energy diagnostic and discrete solver; this ratio is not used as a pass/fail criterion.

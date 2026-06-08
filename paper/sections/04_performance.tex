@@ -1,0 +1,29 @@
+\section{Performance Engineering}
+Charge deposition is memory-bound on CPU because particles are read sequentially while grid writes are irregular and often non-local.
+We apply three complementary optimizations: cell sorting for spatial locality, SoA layout for vector-friendly particle reads, and OpenMP grid privatization to avoid atomic contention.
+
+\subsection{Particle Sorting}
+Before deposition, particles are sorted by cell index $c = i_y N_x + i_x$, computed from periodic-wrapped coordinates.
+For AoS, \texttt{std::sort} reorders the particle array in place; for SoA, an index permutation is sorted and attributes are gathered into a new buffer.
+Sorting costs $\mathcal{O}(N_p \log N_p)$ but clusters particles that write to nearby grid cells, improving cache reuse during the scatter loop.
+In timed microbenchmarks, sort and deposit are measured separately so that locality benefits are not conflated with reordering overhead.
+
+\subsection{AoS vs SoA}
+AoS stores $(x,y,v_x,v_y,q,m)$ in a 48-byte struct per particle; SoA stores each attribute in a separate contiguous array (40 bytes read per particle during deposition).
+SoA enables unit-stride access to positions and charges, which is favorable when the inner loop touches only a subset of attributes.
+AoS can be faster to sort because reordering a single array avoids the SoA gather pass.
+Our benchmarks compare both layouts under identical schemes and thread counts.
+
+\subsection{OpenMP Privatization}
+Parallel CPU deposition partitions the particle index range across $T$ threads.
+Each thread allocates a private copy of the full $\rho$ grid, deposits its particle subset locally, then merges into the global grid inside an \texttt{omp critical} region:
+\begin{equation}
+    \rho^{\mathrm{global}}_k \mathrel{+}= \sum_{t=0}^{T-1} \rho^{\mathrm{local},t}_k.
+\end{equation}
+This avoids per-cell atomics that serialize cache lines under high thread counts.
+The trade-off is $T\times$ temporary grid storage and a merge pass whose cost grows with grid size and thread count.
+
+\subsection{GPU Strategies (Future Work)}
+CUDA kernels implementing atomic and privatized tile deposition are compiled when \texttt{BUILD\_CUDA=ON}.
+The atomic variant performs direct scatter updates with hardware atomics; the privatized variant assigns each thread block a tile of the grid, accumulates locally, and merges tiles afterward.
+These backends share the same \texttt{DepositionConfig} interface as the CPU path but are not benchmarked in this study.

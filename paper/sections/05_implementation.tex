@@ -1,0 +1,44 @@
+\section{Implementation}
+The reference code is implemented in C++17 with OpenMP and FFTW~3.3.
+Periodic boundaries are enforced by wrapping particle positions and grid indices modulo $(N_x,N_y)$.
+The unit domain is $[0,1]^2$ with cell volume $\Delta x\,\Delta y$.
+
+\subsection{Software Architecture}
+Three executables are provided:
+\begin{itemize}
+    \item \texttt{pic\_sim}: full electrostatic PIC timestep loop for interactive runs.
+    \item \texttt{pic\_benchmark}: sweeps the deposition parameter matrix and writes CSV results.
+    \item \texttt{pic\_validation}: runs charge, spectral-noise, and Langmuir-wave diagnostics.
+\end{itemize}
+Deposition kernels share a \texttt{DepositionConfig} structure selectable at runtime by scheme, particle layout (AoS/SoA), sorting flag, thread count, and backend (CPU, GPU atomics, or GPU privatized).
+Each scheme exposes paired AoS and SoA entry points plus OpenMP-parallel variants for $T>1$.
+
+\subsection{Timestep Cycle}
+The explicit leapfrog cycle is scheme-dependent during deposition.
+For NGP, CIC, and TSC:
+\begin{enumerate}
+    \item Particle push: $\mathbf{x}_p \mathrel{+}= \mathbf{v}_p\,\Delta t$ with periodic wrap.
+    \item Charge deposition at the new particle position.
+    \item Poisson solve: FFT-based spectral solve computes $\phi$ and $\mathbf{E}$.
+    \item Field gather: CIC interpolation of $\mathbf{E}$, then $\mathbf{v}_p \mathrel{+}= -(q_p/m_p)\mathbf{E}\,\Delta t$.
+\end{enumerate}
+For Esirkepov, deposition must use the pre-push position and the displacement $\mathbf{v}_p\,\Delta t$:
+\begin{enumerate}
+    \item Charge deposition along $[\mathbf{x}_p,\mathbf{x}_p+\mathbf{v}_p\Delta t]$.
+    \item Particle push.
+    \item Poisson solve and field gather as above.
+\end{enumerate}
+This ordering preserves trajectory-based charge conservation.
+
+\subsection{Diagnostics and Reproducibility}
+After deposition, we compute charge conservation error
+\begin{equation}
+    \epsilon_Q = \frac{\left|\sum_{i,j}\rho_{i,j}\,\Delta x\,\Delta y - \sum_p q_p\right|}{\sum_p |q_p|},
+\end{equation}
+spectral noise as the fraction of FFT power above one-third of the Nyquist wavenumber in each dimension, and total energy $W = W_{\mathrm{kin}} + W_{\mathrm{field}}$.
+Benchmark output is written as CSV under \texttt{results/}; \texttt{scripts/plot\_results.py} converts these files to the figures in this paper.
+
+\subsection{Data and Code Availability}
+The complete source code, build scripts, and archived benchmark CSVs are distributed with this project.
+Figures and summary tables regenerate from the archived data in \texttt{data/benchmarks/} via \texttt{scripts/plot\_results.py}.
+GPU deposition benchmarks will be added in a future revision once CUDA hardware is available.

@@ -1,0 +1,73 @@
+\section{Deposition Methods}
+Charge deposition maps $N_p$ macroparticles onto an $N_x \times N_y$ grid by scattering weighted contributions into $\rho$.
+Each scheme trades stencil width, arithmetic cost, and spectral smoothness.
+Table~\ref{tab:stencil} summarizes the per-particle grid touches in our 2D implementation.
+
+\begin{table}[t]
+\centering
+\caption{Deposition stencil characteristics in 2D.}
+\label{tab:stencil}
+\begin{tabular}{lrrl}
+\toprule
+Scheme & Nodes & Writes/particle & Conservation \\
+\midrule
+NGP  & 1  & 1 & Point assignment \\
+CIC  & 4  & 4 & Not exact; low error \\
+TSC  & 9  & 9 & Not exact; lowest noise \\
+Esirkepov & $\mathcal{O}(L)$ & $\mathcal{O}(L^2)$ & Exact along trajectory \\
+\bottomrule
+\end{tabular}
+\end{table}
+\noindent$L$ is the number of grid cells crossed by the particle trajectory in one dimension.
+
+\subsection{Nearest Grid Point (NGP)}
+NGP assigns each macroparticle charge $q_p$ to the nearest grid node $(j_x,j_y)$.
+Given fractional cell coordinates $(w_x,w_y)$ from the particle position,
+\begin{equation}
+    j_x = \begin{cases} i_x+1 & w_x \geq 0.5 \\ i_x & \text{otherwise} \end{cases},
+\end{equation}
+with analogous rule for $j_y$, and update
+\begin{equation}
+    \rho_{j_x,j_y} \mathrel{+}= \frac{q_p}{\Delta x\,\Delta y}.
+\end{equation}
+NGP performs one read-modify-write per particle and is the fastest scheme, but its discontinuous shape function injects the highest grid noise.
+
+\subsection{Cloud-In-Cell (CIC)}
+CIC distributes charge to the four nodes of the host cell using separable linear weights.
+For one dimension,
+\begin{equation}
+    w_1 = 1-\xi, \qquad w_2 = \xi, \qquad \xi = \frac{x_p-x_i}{\Delta x},
+\end{equation}
+and in 2D,
+\begin{equation}
+    \rho_{i,j} \mathrel{+}= \frac{q_p}{\Delta x\,\Delta y}
+    \sum_{\alpha,\beta \in \{0,1\}} w_x^{(\alpha)} w_y^{(\beta)},
+\end{equation}
+where $w_x^{(0)}=1-w_x$, $w_x^{(1)}=w_x$, and similarly for $y$.
+CIC is the standard production choice: four grid writes per particle with substantially lower high-$k$ noise than NGP.
+
+\subsection{Triangular-Shaped Cloud (TSC)}
+TSC uses a three-point quadratic B-spline per dimension, touching nine nodes in 2D.
+With normalized coordinate $\xi = x_p/\Delta x$ and base index $i_0 = \lfloor \xi - 0.5 \rfloor$,
+let $x = \xi - i_0$. The weights are
+\begin{align}
+    w_0(x) &= \tfrac{1}{2}(1.5-x)^2, \\
+    w_1(x) &= 0.75 - (x-1)^2, \\
+    w_2(x) &= \tfrac{1}{2}(x-0.5)^2.
+\end{align}
+The 2D deposit is the tensor product $w_x^{(d_x)} w_y^{(d_y)}$ over $d_x,d_y \in \{0,1,2\}$.
+TSC reduces spectral noise relative to CIC at the cost of nine scatter writes and additional weight arithmetic.
+
+\subsection{Esirkepov Charge-Conserving Deposition}
+Esirkepov's scheme deposits charge along the particle trajectory so that the discrete charge density update is exactly conservative~\cite{esirkepov2001}.
+For a particle moving from $\mathbf{x}_0$ to $\mathbf{x}_1 = \mathbf{x}_0 + \mathbf{v}\,\Delta t$ over one timestep,
+1D trajectory weights $W_i$ are accumulated by marching through crossed cell boundaries:
+\begin{equation}
+    W_i \mathrel{+}= \frac{x_{\mathrm{next}} - x_{\mathrm{curr}}}{\Delta x},
+\end{equation}
+where $x_{\mathrm{next}}$ is clipped to the next cell face or the endpoint.
+In 2D we form separable weights $W^x_i$ and $W^y_j$ and deposit only over the sparse outer product of nonzero supports:
+\begin{equation}
+    \rho_{i,j} \mathrel{+}= \frac{q_p}{\Delta x\,\Delta y}\, W^x_i\, W^y_j.
+\end{equation}
+Our implementation stores only cells touched by the trajectory, giving $\mathcal{O}(L_x L_y)$ writes per particle where $L_x$ and $L_y$ are the number of cells crossed in each dimension.

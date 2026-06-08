@@ -1,0 +1,48 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+
+\begin{document}
+
+\title{Cache-Aware and GPU-Accelerated Charge Deposition for Electrostatic Particle-In-Cell Simulations\thanks{CUDA deposition kernels (atomic and privatized-tile variants) are implemented and buildable with \texttt{BUILD\_CUDA=ON}, but no GPU performance numbers appear in this version; all reported benchmarks and validation use CPU backends.}}
+
+\author{\IEEEauthorblockN{Elhadj Hocine}
+\IEEEauthorblockA{\textit{Independent Researcher}\\
+Email: hocineelhadj@gmail.com}}
+
+\maketitle
+
+\begin{abstract}
+Charge deposition is a dominant cost in explicit Particle-In-Cell (PIC) plasma simulations because it performs irregular, scatter-oriented updates to a structured grid.
+This work presents a reproducible two-dimensional electrostatic PIC framework and evaluates Nearest Grid Point (NGP), Cloud-In-Cell (CIC), Triangular-Shaped Cloud (TSC), and Esirkepov charge-conserving deposition under cache-aware CPU optimizations.
+We compare Array-of-Structures (AoS) and Structure-of-Arrays (SoA) layouts, optional cell sorting, and OpenMP parallelization with thread-local grid privatization.
+Benchmarks measure sort and deposit time separately, effective memory bandwidth, charge conservation error, energy drift, spectral grid noise, and CPU strong scaling on particle counts from $10^4$ to $10^6$.
+A Langmuir-wave validation confirms scheme-independent oscillation frequencies within 5\% across all four deposition methods.
+GPU deposition kernels are implemented but left for future performance evaluation.
+Results show AoS and SoA achieve comparable deposit throughput, sorting adds overhead when timed per call, CIC offers the best accuracy--performance trade-off, and OpenMP privatization yields modest speedups before merge cost dominates.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Particle-In-Cell, charge deposition, high performance computing, cache optimization, plasma simulation
+\end{IEEEkeywords}
+
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_methods}
+\input{sections/04_performance}
+\input{sections/05_implementation}
+\input{sections/06_methodology}
+\input{sections/07_results}
+\input{sections/08_discussion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

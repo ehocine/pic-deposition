@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Representative CPU deposition results ($N_p=10^5$, $128^2$ grid, SoA, sorted).}
+\label{tab:summary}
+\begin{tabular}{lrrrr}
+\toprule
+Scheme & Sort & Deposit & Thrpt. & $\epsilon_Q$ \\
+ & (ms) & (ms) & ($10^8$ p/s) & \\
+\midrule
+NGP & 2.398 & 1.992 & 0.50 & 0.00e+00 \\
+CIC & 2.282 & 0.589 & 1.70 & 1.16e-17 \\
+TSC & 2.377 & 0.902 & 1.11 & 1.36e-18 \\
+Esirkepov & 2.332 & 4.329 & 0.23 & 1.03e-03 \\
+\bottomrule
+\end{tabular}
+\end{table}

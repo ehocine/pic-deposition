@@ -1,0 +1,55 @@
+\section{Experimental Methodology}
+
+\subsection{Benchmark Matrix}
+Microbenchmarks sweep a full factorial over:
+\begin{itemize}
+    \item Particle counts $N_p \in \{10^4, 10^5, 10^6\}$.
+    \item Grid sizes $64^2$, $128^2$, and $256^2$ on the unit square.
+    \item Schemes: NGP, CIC, TSC, Esirkepov.
+    \item Layouts: AoS and SoA.
+    \item Sorting: enabled and disabled.
+\end{itemize}
+Each case uses 5 timed repeats after 3 warmup depositions.
+Particles are initialized from a uniform Maxwellian with fixed seed 42.
+Esirkepov microbenchmarks use $\Delta t = 0.01$ to form trajectory weights.
+CPU scaling cases fix $N_p=10^5$, grid $128^2$, CIC, SoA, no sorting, and thread counts $T \in \{1,2,4,8\}$ with privatized OpenMP buffers.
+Energy-drift simulations run 500 steps for all schemes at $N_p=10^5$ on a $128^2$ grid with sorting enabled.
+
+\subsection{Timing Protocol}
+Timed deposition separates sort cost from kernel cost.
+When sorting is enabled, one sort is timed, then the deposit kernel is averaged over \texttt{repeats} iterations on the sorted particle order.
+Throughput is reported as $N_p / t_{\mathrm{deposit}}$ and effective bandwidth as $(B_{\mathrm{read}}+B_{\mathrm{write}})/t_{\mathrm{deposit}}$, where $B_{\mathrm{read}}$ counts particle record bytes and $B_{\mathrm{write}}$ counts stencil updates plus one grid clear.
+Sort time is excluded from throughput and bandwidth so that locality effects can be compared independently.
+
+\subsection{Physics Validation}
+Langmuir-wave validation uses $N_p=200$ particles on a $64^2$ grid with $\Delta t=0.002$ and 16384 timesteps.
+A sinusoidal velocity perturbation of amplitude 0.05 is imposed at mode number $m=1$.
+After each deposition, a neutralizing background $\rho_{\mathrm{bg}} = 1/(L_x L_y)$ is added.
+Field energy is recorded over the final three-quarters of the run and analyzed by discrete Fourier transform.
+Pass criterion: measured frequency spread across all four schemes $\leq 5\%$.
+We also report $\omega_{\mathrm{meas}}/\omega_{p,\mathrm{macro}}$ to document the systematic offset from the 1D cold-plasma estimate in this 2D diagnostic setup.
+
+Energy-drift validation uses separate 500-step full-PIC simulations at $N_p=10^5$ on a $128^2$ grid.
+
+\subsection{Hardware and Scope}
+All benchmarks were built with \texttt{cmake -DCMAKE\_BUILD\_TYPE=Release} and executed on the platform summarized in Table~\ref{tab:hardware}.
+GPU evaluation is deferred to future work on CUDA hardware; CUDA kernels compile with \texttt{BUILD\_CUDA=ON} but are not timed in this study.
+All reported figures use deposit-kernel time unless explicitly labeled otherwise.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Benchmark platform configuration.}
+\label{tab:hardware}
+\begin{tabular}{ll}
+\toprule
+Component & Specification \\
+\midrule
+CPU & Apple M1 Pro \\
+Cores & 8 (OpenMP threads: 1, 2, 4, 8) \\
+OS & macOS 26.5.1 \\
+Compiler & Apple clang 21.0.0, C++17, \texttt{-O3} \\
+Libraries & FFTW 3.3.11, libomp 22.1.7 \\
+\bottomrule
+\end{tabular}
+\end{table}
