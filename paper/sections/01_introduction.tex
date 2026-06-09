@@ -5,16 +5,16 @@ Among these stages, charge deposition is frequently a bottleneck because it scat
 Prior studies have shown that shape-function choice controls grid noise and stability~\cite{langdon1970}, while charge-conserving deposition is essential for long-time accuracy~\cite{esirkepov2001,harvey2015}.
 
 This work presents a performance-oriented evaluation of deposition algorithms and cache-aware CPU implementations in a reproducible 2D electrostatic PIC framework.
-This paper reports CPU microbenchmarks and physics validation; GPU throughput evaluation is planned once CUDA hardware is available.
+This paper reports CPU microbenchmarks on Apple M1 Pro, GPU atomic deposition on Tesla T4, and shared physics validation.
 We study NGP, CIC, TSC, and Esirkepov charge-conserving deposition~\cite{esirkepov2001}, along with particle sorting, AoS versus SoA layouts, and OpenMP parallelization with thread-local grid buffers.
-CUDA deposition kernels (atomics and privatized tiles) are included in the codebase but not benchmarked in this study.
+CUDA deposition kernels (atomics and multi-block privatized tiles) are benchmarked on Tesla T4 alongside CPU results on Apple M1 Pro.
 
 Our contributions are:
 \begin{itemize}
     \item A reproducible 2D electrostatic PIC reference code with FFT-based Poisson solve and unified deposition interface.
-    \item A systematic comparison of four deposition schemes with charge, energy, and spectral-noise diagnostics.
+    \item A systematic comparison of four deposition schemes with charge, energy, spectral-noise, and long-run conservation diagnostics.
     \item Cache-aware CPU study separating sort cost from deposit-kernel throughput for AoS/SoA layouts.
-    \item Langmuir-wave validation and OpenMP privatization benchmarks on Apple Silicon.
+    \item Langmuir-wave validation, OpenMP privatization on Apple Silicon, and roofline-style GPU/CPU performance analysis.
 \end{itemize}
 
 \section{Mathematical Background}

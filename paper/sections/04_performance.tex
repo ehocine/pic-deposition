@@ -23,7 +23,10 @@ Each thread allocates a private copy of the full $\rho$ grid, deposits its parti
 This avoids per-cell atomics that serialize cache lines under high thread counts.
 The trade-off is $T\times$ temporary grid storage and a merge pass whose cost grows with grid size and thread count.
 
-\subsection{GPU Strategies (Future Work)}
-CUDA kernels implementing atomic and privatized tile deposition are compiled when \texttt{BUILD\_CUDA=ON}.
-The atomic variant performs direct scatter updates with hardware atomics; the privatized variant assigns each thread block a tile of the grid, accumulates locally, and merges tiles afterward.
-These backends share the same \texttt{DepositionConfig} interface as the CPU path but are not benchmarked in this study.
+\subsection{GPU Strategies}
+CUDA kernels implementing atomic and privatized-tile deposition compile when \texttt{BUILD\_CUDA=ON}.
+The atomic variant launches one thread per particle and scatters into the global grid with hardware \texttt{atomicAdd}.
+The privatized variant launches one block per $16\times16$ spatial tile; threads stride over all particles, accumulate matching stencil contributions in shared memory with \texttt{atomicAdd}, then merge each tile into global memory.
+This design preserves charge conservation but costs $\mathcal{O}(N_{\mathrm{tiles}}\,N_p)$ work because every tile block scans the full particle list.
+Atomic GPU deposition is therefore the preferred production backend on Tesla T4; privatized tiles are retained for correctness validation and as a baseline for future particle--tile binning.
+Both backends share the same \texttt{DepositionConfig} interface as the CPU path.

@@ -39,6 +39,7 @@ spectral noise as the fraction of FFT power above one-third of the Nyquist waven
 Benchmark output is written as CSV under \texttt{results/}; \texttt{scripts/plot\_results.py} converts these files to the figures in this paper.
 
 \subsection{Data and Code Availability}
-The complete source code, build scripts, and archived benchmark CSVs are distributed with this project.
-Figures and summary tables regenerate from the archived data in \texttt{data/benchmarks/} via \texttt{scripts/plot\_results.py}.
-GPU deposition benchmarks will be added in a future revision once CUDA hardware is available.
+The complete source code, build scripts, and archived benchmark CSVs are available at \url{https://github.com/ehocine/pic-deposition}.
+A citable release with DOI will be deposited on Zenodo (\texttt{TODO-DOI}); see \texttt{CITATION.cff} in the repository root.
+Figures and summary tables regenerate from the archived data in \texttt{data/benchmarks/} via \texttt{scripts/plot\_results.py}, including CPU results (\texttt{benchmark.csv}), GPU results (\texttt{benchmark\_gpu.csv}), and conservation study output (\texttt{conservation\_study.csv}).
+GPU benchmarks are reproduced with \texttt{scripts/kaggle\_gpu\_benchmark.sh}; long-run conservation studies run via \texttt{./pic\_benchmark --conservation}.

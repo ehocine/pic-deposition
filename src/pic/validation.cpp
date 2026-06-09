@@ -3,9 +3,12 @@
 #include "deposition/deposition.hpp"
 #include "pic/diagnostics.hpp"
 #include "pic/poisson_fft.hpp"
+#include "pic/simulation.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
 #include <vector>
 
 namespace pic {
@@ -92,14 +95,18 @@ LangmuirValidationResult runLangmuirValidation(const SimulationConfig& config) {
     for (int step = 0; step < domain.steps; ++step) {
         if (esirkepov) {
             depositChargeSoA(particles, grid, dep);
-            pushParticlesSoA(particles, grid, domain.dt);
         } else {
             pushParticlesSoA(particles, grid, domain.dt);
             depositChargeSoA(particles, grid, dep);
         }
         applyNeutralizingBackground(grid);
         fft_solver.solve(grid);
-        gatherFieldsSoA(particles, grid, domain.dt);
+        if (esirkepov) {
+            pushParticlesSoA(particles, grid, domain.dt);
+            gatherFieldsSoA(particles, grid, domain.dt);
+        } else {
+            gatherFieldsSoA(particles, grid, domain.dt);
+        }
         if (step >= record_start) {
             field_energy.push_back(grid.fieldEnergy());
         }
@@ -171,6 +178,229 @@ std::vector<ValidationSummary> runValidationSuite(const SimulationConfig& base_c
     }
 
     return results;
+}
+
+std::vector<ConservationStudyResult> runConservationStudy(const SimulationConfig& base_config) {
+    std::vector<ConservationStudyResult> results;
+    const std::vector<DepositionScheme> schemes = {DepositionScheme::NGP, DepositionScheme::CIC,
+                                                   DepositionScheme::TSC, DepositionScheme::Esirkepov};
+
+    for (auto scheme : schemes) {
+        SimulationConfig cfg = base_config;
+        cfg.scheme = scheme;
+        cfg.deposition.scheme = scheme;
+        cfg.layout = ParticleLayout::SoA;
+        cfg.sorted = true;
+
+        Simulation sim(cfg);
+        const auto result = sim.run();
+
+        ConservationStudyResult row;
+        row.scheme = scheme;
+        row.steps = cfg.domain.steps;
+        row.max_charge_error = result.charge_error_history.empty()
+                                   ? result.final_charge_error
+                                   : *std::max_element(result.charge_error_history.begin(),
+                                                       result.charge_error_history.end());
+        row.final_energy_drift = result.energy_drift;
+        results.push_back(row);
+    }
+    return results;
+}
+
+double estimateGrowthRate(const std::vector<double>& field_energy, double dt, int record_start_step) {
+    if (field_energy.size() < 8) {
+        return 0.0;
+    }
+    const std::size_t n = field_energy.size();
+    const std::size_t start = n / 4;
+    const std::size_t end = (3 * n) / 4;
+    if (end <= start + 2) {
+        return 0.0;
+    }
+
+    double sum_t = 0.0;
+    double sum_l = 0.0;
+    double sum_tt = 0.0;
+    double sum_tl = 0.0;
+    int count = 0;
+    for (std::size_t i = start; i < end; ++i) {
+        const double e = std::max(field_energy[i], 1e-30);
+        const double t = static_cast<double>(record_start_step + static_cast<int>(i)) * dt;
+        const double l = std::log(e);
+        sum_t += t;
+        sum_l += l;
+        sum_tt += t * t;
+        sum_tl += t * l;
+        ++count;
+    }
+    const double denom = static_cast<double>(count) * sum_tt - sum_t * sum_t;
+    if (std::abs(denom) < 1e-30) {
+        return 0.0;
+    }
+    // Field energy scales as exp(2*gamma*t) when mode amplitude ~ exp(gamma*t).
+    const double slope = (static_cast<double>(count) * sum_tl - sum_t * sum_l) / denom;
+    return 0.5 * slope;
+}
+
+double coldTwoStreamGrowthRate(const Domain& domain, std::size_t num_particles) {
+    const double omega_p = theoreticalPlasmaFrequency(domain, num_particles);
+    return omega_p / std::sqrt(2.0);
+}
+
+TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config) {
+    SimulationConfig cfg = config;
+    cfg.two_stream_mode = true;
+    cfg.langmuir_mode = false;
+    cfg.sorted = false;
+
+    Domain domain = cfg.domain;
+    domain.updateDerived();
+    FieldGrid grid(domain);
+    ParticlesSoA particles(cfg.num_particles);
+    particles.initializeTwoStream(domain, cfg.two_stream_beam_velocity, cfg.two_stream_perturbation, cfg.seed);
+
+    PoissonSolverFFT fft_solver(domain);
+    DepositionConfig dep = cfg.deposition;
+    dep.scheme = cfg.scheme;
+    dep.layout = ParticleLayout::SoA;
+    dep.sorted = false;
+    dep.esirkepov_dt = domain.dt;
+
+    const int record_start = domain.steps / 4;
+    std::vector<double> field_energy;
+    field_energy.reserve(static_cast<std::size_t>(domain.steps - record_start));
+
+    const bool esirkepov = dep.scheme == DepositionScheme::Esirkepov;
+    // Shared solve/gather; deposition uses scheme-native push/deposit split.
+    for (int step = 0; step < domain.steps; ++step) {
+        if (esirkepov) {
+            depositChargeSoA(particles, grid, dep);
+            pushParticlesSoA(particles, grid, domain.dt);
+        } else {
+            pushParticlesSoA(particles, grid, domain.dt);
+            depositChargeSoA(particles, grid, dep);
+        }
+        applyNeutralizingBackground(grid);
+        fft_solver.solve(grid);
+        gatherFieldsSoA(particles, grid, domain.dt);
+        if (step >= record_start) {
+            field_energy.push_back(grid.fieldEnergy());
+        }
+    }
+
+    TwoStreamValidationResult result;
+    result.scheme = cfg.scheme;
+    const double omega_p = theoreticalPlasmaFrequency(domain, cfg.num_particles);
+    result.omega_p_macro = omega_p;
+    result.growth_rate_theory = coldTwoStreamGrowthRate(domain, cfg.num_particles);
+    result.growth_rate_measured = estimateGrowthRate(field_energy, domain.dt, record_start);
+    if (result.growth_rate_theory > 0.0) {
+        result.growth_rate_ratio = result.growth_rate_measured / result.growth_rate_theory;
+    }
+    if (result.omega_p_macro > 0.0) {
+        result.growth_rate_over_omega_p = result.growth_rate_measured / result.omega_p_macro;
+    }
+    result.passed = false;
+    return result;
+}
+
+std::vector<TwoStreamValidationResult> runTwoStreamValidationSuite(const SimulationConfig& base_config) {
+    std::vector<TwoStreamValidationResult> results;
+    const std::vector<DepositionScheme> schemes = {DepositionScheme::NGP, DepositionScheme::CIC,
+                                                   DepositionScheme::TSC, DepositionScheme::Esirkepov};
+    for (auto scheme : schemes) {
+        SimulationConfig cfg = base_config;
+        cfg.scheme = scheme;
+        cfg.deposition.scheme = scheme;
+        auto row = runTwoStreamValidation(cfg);
+        results.push_back(row);
+    }
+
+    // Inter-scheme agreement: shape-function reference (NGP/CIC/TSC); Esirkepov reported separately.
+    double gamma_ref = 0.0;
+    int agree_count = 0;
+    for (const auto& r : results) {
+        if (r.scheme == DepositionScheme::Esirkepov) {
+            continue;
+        }
+        if (r.growth_rate_measured > 0.0) {
+            gamma_ref += r.growth_rate_measured;
+            ++agree_count;
+        }
+    }
+    if (agree_count > 0) {
+        gamma_ref /= static_cast<double>(agree_count);
+        for (auto& r : results) {
+            if (r.growth_rate_measured <= 0.0) {
+                r.passed = false;
+                continue;
+            }
+            const double spread = std::abs(r.growth_rate_measured - gamma_ref) / gamma_ref;
+            r.passed = spread <= 0.10;
+        }
+    }
+    return results;
+}
+
+std::vector<NoiseGridResult> runNoiseVsGridStudy(std::size_t num_particles) {
+    std::vector<NoiseGridResult> rows;
+    const std::vector<int> grids = {64, 128, 256};
+    const std::vector<DepositionScheme> schemes = {DepositionScheme::NGP, DepositionScheme::CIC,
+                                                   DepositionScheme::TSC, DepositionScheme::Esirkepov};
+    for (int g : grids) {
+        Domain domain;
+        domain.Nx = g;
+        domain.Ny = g;
+        domain.updateDerived();
+        for (auto scheme : schemes) {
+            FieldGrid grid(domain);
+            ParticlesSoA particles(num_particles);
+            particles.initializeUniformMaxwellian(domain, 1.0, 42);
+            DepositionConfig dep;
+            dep.scheme = scheme;
+            dep.layout = ParticleLayout::SoA;
+            dep.sorted = true;
+            depositChargeSoA(particles, grid, dep);
+            NoiseGridResult row;
+            row.grid_n = g;
+            row.scheme = scheme;
+            row.spectral_noise = spectralNoiseLevel(grid);
+            rows.push_back(row);
+        }
+    }
+    return rows;
+}
+
+void writeNoiseGridCsv(const std::string& path, const std::vector<NoiseGridResult>& rows) {
+    std::ofstream out(path);
+    out << "grid,scheme,spectral_noise\n";
+    out << std::setprecision(10);
+    for (const auto& row : rows) {
+        out << row.grid_n << 'x' << row.grid_n << ',' << schemeName(row.scheme) << ',' << row.spectral_noise << '\n';
+    }
+}
+
+void writeTwoStreamCsv(const std::string& path, const std::vector<TwoStreamValidationResult>& rows) {
+    std::ofstream out(path);
+    out << "scheme,growth_rate_measured,growth_rate_theory,growth_rate_ratio,omega_p_macro,"
+           "growth_rate_over_omega_p,passed\n";
+    out << std::setprecision(10);
+    for (const auto& row : rows) {
+        out << schemeName(row.scheme) << ',' << row.growth_rate_measured << ',' << row.growth_rate_theory << ','
+            << row.growth_rate_ratio << ',' << row.omega_p_macro << ',' << row.growth_rate_over_omega_p << ','
+            << (row.passed ? 1 : 0) << '\n';
+    }
+}
+
+void writeConservationStudyCsv(const std::string& path, const std::vector<ConservationStudyResult>& rows) {
+    std::ofstream out(path);
+    out << "scheme,steps,max_charge_error,final_energy_drift\n";
+    out << std::setprecision(10);
+    for (const auto& row : rows) {
+        out << schemeName(row.scheme) << ',' << row.steps << ',' << row.max_charge_error << ','
+            << row.final_energy_drift << '\n';
+    }
 }
 
 }  // namespace pic

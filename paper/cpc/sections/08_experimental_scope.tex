@@ -1,0 +1,32 @@
+\subsection{Relation to laboratory measurements}
+\label{sec:experimental}
+
+This program is a \emph{deposition and algorithm benchmark reference}, not a facility-specific simulation code.
+Comparing its outputs directly to a particular laboratory dataset is therefore \textbf{not appropriate as a primary validation claim} without a dedicated experimental campaign and substantial code extension.
+
+\paragraph{What experiments typically measure.}
+Laboratory plasma diagnostics report quantities such as Langmuir-probe $I$--$V$ curves, interferometric or Thomson-scattering electron density $n_e$, wave spectra from probes or optical emission, and instability growth rates from radiated power or field-probe amplitudes~\cite{malmberg1967,oneil1968}.
+None of these map one-to-one onto \emph{isolated deposit-kernel milliseconds} or single-step charge assignment error---the core metrics reported here.
+
+\paragraph{Where qualitative experimental contact is possible.}
+\begin{itemize}
+    \item \textbf{Two-stream / beam--plasma instabilities:} Classic experiments observe exponential growth of field fluctuations when counter-streaming electron beams interact with a plasma~\cite{malmberg1967}.
+    Our two-stream diagnostic tests \emph{inter-scheme agreement} among NGP, CIC, and TSC (within 10\%), not quantitative match to a specific shot because the simulation uses a 2D periodic slab, macroparticle normalization, and cold-beam theory $\gamma \approx \omega_p/\sqrt{2}$ that omits thermal corrections and geometry of real devices (Table~\ref{tab:lit_gamma}).
+    \item \textbf{Langmuir waves:} Probe or microwave measurements of electron-plasma oscillations can be compared to PIC only after matching $n_e$, $T_e$, boundary conditions, and drive amplitude.
+    Our Langmuir test already documents a systematic 2D offset ($\omega_{\mathrm{meas}}/\omega_{p,\mathrm{macro}} \approx 1.73$) and uses inter-scheme frequency agreement as the pass criterion.
+    \item \textbf{Grid noise vs.\ resolution:} Experiments do not usually report PIC-style high-$k$ noise ratios; instead, measured wave spectra or collisionless damping rates reflect accumulated grid and particle noise.
+    Our noise-versus-grid study (Fig.~\ref{fig:noise_grid}) links resolution to deposition smoothness---a \emph{simulation-quality} metric relevant when interpreting wave spectra, not a direct experimental observable.
+\end{itemize}
+
+\paragraph{What would be required for quantitative experimental validation.}
+A credible comparison to published experimental data would require at minimum:
+(1)~3D or carefully matched 2D geometry with experimental boundary conditions;
+(2)~electromagnetic or fully kinetic field model if comparing to laser--plasma or beam experiments;
+(3)~realistic $n_e$, $T_e$, and beam parameters from a cited shot;
+(4)~synthetic diagnostics mirroring the experiment (e.g.\ density line-integrated along a probe chord);
+(5)~uncertainty quantification on both simulation and measurement.
+That scope defines a separate physics paper, not an extension of this deposition benchmark program.
+
+\paragraph{Recommended CPC positioning.}
+We validate \emph{algorithmic correctness and reproducible performance} through inter-scheme linear and weakly nonlinear tests, long-run conservation, and literature-positioned engineering comparisons (Section~\ref{sec:code_comparison}).
+Experimental comparison should be cited qualitatively---e.g.\ that two-stream and Langmuir tests reproduce the \emph{class} of phenomena observed in beam--plasma experiments---without claiming quantitative agreement to a specific dataset.

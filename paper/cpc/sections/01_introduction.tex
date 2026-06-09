@@ -1,0 +1,21 @@
+\section{Introduction}
+\label{sec:intro}
+
+Particle-In-Cell (PIC) methods combine Lagrangian macroparticles with Eulerian field grids and are central to kinetic plasma simulation~\cite{birdsall1991,hockney1988,dawson1983}.
+Each explicit timestep performs particle push, charge deposition, field solve, and field gather; deposition is frequently the performance bottleneck because it performs irregular scatter writes to a structured grid~\cite{viereck2016}.
+Long-time accuracy additionally requires that deposited charge preserve global conservation to machine precision or via trajectory-based schemes~\cite{brackbill1980,esirkepov2001}; poor conservation injects spurious fields and energy drift over thousands of timesteps.
+
+Production codes such as PIConGPU~\cite{burau2010,steiniger2023} and Smilei~\cite{derouillat2018,beck2019} integrate deposition into large-scale 3D electromagnetic workflows with MPI, I/O, and architecture-specific GPU kernels.
+Practitioners nonetheless need a compact, reproducible reference to compare NGP, CIC, TSC, and Esirkepov under controlled 2D electrostatic settings with explicit sort-versus-deposit timing and bundled validation diagnostics before adapting kernels to production environments.
+
+This program provides:
+\begin{itemize}
+    \item A unified C++17 deposition interface with AoS/SoA layouts, optional cell sorting, OpenMP privatization, and CUDA atomics or tiled privatization.
+    \item Microbenchmarks, full-timestep profiles, roofline-style analysis, and archived CSV regeneration of all figures.
+    \item Physics validation: Langmuir-wave frequency agreement, two-stream growth-rate agreement, and 2000-step conservation studies.
+\end{itemize}
+
+Section~\ref{sec:related} reviews related PIC deposition work.
+Section~\ref{sec:methods} summarizes schemes (inherited notation from the methods section).
+Sections~\ref{sec:program}--\ref{sec:install} document program structure and installation.
+Sections~\ref{sec:methodology}--\ref{sec:results} present benchmarks; Section~\ref{sec:physics} reports validation; Section~\ref{sec:code_comparison} compares with literature.

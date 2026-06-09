@@ -1,0 +1,31 @@
+\subsection{Literature context for two-stream growth rates}
+\label{sec:lit_gamma}
+
+Table~\ref{tab:lit_gamma} lists published two-stream / beam--plasma growth-rate estimates alongside this program's diagnostic.
+\textbf{These entries are not pass/fail criteria:} dimensionality, normalization, thermal effects, and reported units differ across studies.
+The table positions our inter-scheme benchmark in the historical literature rather than claiming quantitative agreement with any single experiment.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Two-stream growth-rate literature context (not directly commensurate with this benchmark).}
+\label{tab:lit_gamma}
+\begin{tabular}{@{}p{0.22\linewidth}p{0.28\linewidth}p{0.22\linewidth}p{0.22\linewidth}@{}}
+\toprule
+Reference & Setting & Reported $\gamma/\omega_p$ & Role here \\
+\midrule
+Birdsall \& Langdon~\cite{birdsall1991} & 1D cold symmetric beams (theory) & $\approx 0.71$ & Canonical 1D analytic reference \\
+Drummond {et al.}~\cite{drummond1970} & Weak warm beam--plasma (theory) & 0.7 max & Thermal-beam correction \\
+Malmberg \& Penrose~\cite{malmberg1967} & Pure electron plasma column (experiment) & Qualitative growth & Experimental archetype \\
+O{'}Neil \& Malmberg~\cite{oneil1968} & Finite-$T_e$ two-stream & $\gamma$ decreases with $T_e$ & Finite-$T_e$ caveat \\
+Denavit~\cite{denavit1983} & 1D Vlasov--PIC verification & $\approx 0.6$--$0.7$ & PIC literature band \\
+\textbf{This program} & 2D periodic, $64^2$, $N_p=5000$ & $\approx 23$--$29$ (NGP/CIC/TSC) & Inter-scheme benchmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Measured growth rates from \texttt{pic\_benchmark --validate} (archived CSV) are summarized in Table~\ref{tab:twostream_sim}.
+NGP, CIC, and TSC are compared under a shared leapfrog cycle with scheme-native push/deposit splits; Esirkepov is listed separately because trajectory deposition alters nonlinear saturation.
+The large $\gamma/\omega_{p,\mathrm{macro}}$ ratio relative to 1D theory reflects 2D periodic geometry and macroparticle normalization, not a discrepancy among NGP/CIC/TSC kernels.
+
+\input{../figures/two_stream_summary.tex}

@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: "Cache-Aware and GPU-Accelerated Charge Deposition for Electrostatic PIC Simulations"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - given-names: Elhadj
+    family-names: Hocine
+    affiliation: Independent Researcher
+    email: hocineelhadj@gmail.com
+repository-code: "https://github.com/ehocine/pic-deposition"
+url: "https://github.com/ehocine/pic-deposition"
+license: MIT
+keywords:
+  - particle-in-cell
+  - charge deposition
+  - plasma simulation
+  - high performance computing
+  - CUDA
+  - OpenMP
+version: 1.0.0
+date-released: "2026-06-08"
+doi: 10.5281/zenodo.TODO-DOI

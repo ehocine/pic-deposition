@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering
+\small
+\caption{GPU atomic vs privatized CIC on Tesla T4 ($128^2$ grid, SoA).}
+\label{tab:gpu_priv}
+\begin{tabular}{lrrrr}
+\toprule
+$N_p$ & Atomics (ms) & Priv (ms) & Atomics speedup & Priv speedup \\
+\midrule
+1e+04 & 0.18 & 0.57 & 2.3$\times$ & 0.7$\times$ \\
+1e+05 & 0.81 & 4.72 & 5.3$\times$ & 0.9$\times$ \\
+1e+06 & 6.07 & 39.59 & 7.3$\times$ & 1.1$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}

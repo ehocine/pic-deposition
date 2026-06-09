@@ -1,6 +1,7 @@
 #pragma once
 
 #include "deposition/deposition.hpp"
+#include "pic/simulation.hpp"
 #include "pic/validation.hpp"
 
 #include <fstream>
@@ -23,10 +24,19 @@ struct BenchmarkCase {
     bool measure_spectral_noise = false;
 };
 
+struct TimestepProfileRow {
+    std::size_t num_particles = 0;
+    int grid_n = 128;
+    DepositionScheme scheme = DepositionScheme::CIC;
+    int sort_interval = 1;
+    TimestepProfile profile;
+};
+
 struct BenchmarkRow {
     BenchmarkCase case_config;
     double sort_ms = 0.0;
     double deposit_ms = 0.0;
+    double deposit_std_ms = 0.0;
     double deposition_ms = 0.0;
     double full_step_ms = 0.0;
     double throughput = 0.0;
@@ -49,6 +59,10 @@ public:
     static std::vector<BenchmarkCase> simMatrix();
     static std::vector<BenchmarkCase> gpuMatrix();
     static std::vector<BenchmarkCase> defaultMatrix(bool include_gpu);
+
+    static std::vector<TimestepProfileRow> runTimestepProfiles();
+    static std::vector<TimestepProfileRow> runAmortizedTimestepProfiles();
+    static void writeTimestepProfileCsv(const std::string& path, const std::vector<TimestepProfileRow>& rows);
 
 private:
     std::vector<BenchmarkCase> cases_;

@@ -101,6 +101,33 @@ void ParticlesAoS::initializeLangmuirWave(const Domain& domain, double amplitude
     data_ = toAoS(soa).data();
 }
 
+void ParticlesAoS::initializeTwoStream(const Domain& domain, double beam_velocity, double perturbation,
+                                       unsigned seed) {
+    ParticlesSoA soa(data_.size());
+    soa.initializeTwoStream(domain, beam_velocity, perturbation, seed);
+    data_ = toAoS(soa).data();
+}
+
+void ParticlesSoA::initializeTwoStream(const Domain& domain, double beam_velocity, double perturbation,
+                                       unsigned seed) {
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<double> ux(0.0, domain.Lx);
+    std::uniform_real_distribution<double> uy(0.0, domain.Ly);
+    const std::size_t n = x_.size();
+    const double qp = -1.0 / static_cast<double>(n);
+    const double k = 2.0 * M_PI / domain.Lx;
+    for (std::size_t i = 0; i < n; ++i) {
+        x_[i] = ux(rng);
+        y_[i] = uy(rng);
+        const double sign = (i < n / 2) ? 1.0 : -1.0;
+        const double pert = perturbation * std::sin(k * x_[i]);
+        vx_[i] = sign * beam_velocity + pert;
+        vy_[i] = 0.0;
+        m_[i] = 1.0;
+        q_[i] = qp;
+    }
+}
+
 double ParticlesSoA::totalCharge() const {
     double sum = 0.0;
     for (double v : q_) {

@@ -1,0 +1,26 @@
+\section{CSV schema and benchmark flags}
+\label{app:csv}
+
+\subsection{Microbenchmark CSV}
+Columns written by \texttt{pic\_benchmark}:
+\texttt{num\_particles}, \texttt{grid}, \texttt{scheme}, \texttt{layout}, \texttt{sorted}, \texttt{backend}, \texttt{threads}, \texttt{sort\_ms}, \texttt{deposit\_ms}, \texttt{deposition\_ms}, \texttt{full\_step\_ms}, \texttt{throughput}, \texttt{bandwidth\_gbs}, \texttt{charge\_error}, \texttt{energy\_drift}, \texttt{spectral\_noise}, \texttt{speedup}.
+
+\subsection{Timestep profile CSV}
+\texttt{num\_particles}, \texttt{grid}, \texttt{scheme}, \texttt{push\_ms}, \texttt{sort\_ms}, \texttt{deposit\_ms}, \texttt{poisson\_ms}, \texttt{gather\_ms}, \texttt{total\_ms}.
+
+\subsection{Validation CSVs}
+\begin{itemize}
+    \item \texttt{validation\_*.csv}: Langmuir $\omega$, spectral noise, charge error per scheme.
+    \item \texttt{conservation\_study.csv}: long-run max $\epsilon_Q$ and energy drift.
+    \item \texttt{two\_stream\_validation.csv}: measured and theoretical growth rates.
+\end{itemize}
+
+\subsection{Command-line flags}
+\begin{itemize}
+    \item \texttt{--gpu}: GPU benchmark matrix (CUDA required).
+    \item \texttt{--sim}: 500-step energy-drift simulations.
+    \item \texttt{--validate}: Langmuir + conservation + two-stream CSVs.
+    \item \texttt{--conservation}: 2000-step conservation study only.
+    \item \texttt{--timestep}: full-timestep profile at $N_p \in \{10^4,10^5,10^6\}$.
+    \item \texttt{--amortized}: sort-interval sweep $K \in \{1,10,100\}$ at $N_p=10^5$.
+\end{itemize}

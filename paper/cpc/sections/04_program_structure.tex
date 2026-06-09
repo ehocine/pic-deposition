@@ -1,0 +1,46 @@
+\section{Program structure}
+\label{sec:program}
+
+\subsection{Executables}
+Four command-line executables are built from a static library \texttt{pic\_core}:
+\begin{itemize}
+    \item \texttt{pic\_sim}: interactive full-PIC runs.
+    \item \texttt{pic\_benchmark}: parameter-matrix sweeps and CSV output (\texttt{--timestep}, \texttt{--validate}, \texttt{--conservation}, \texttt{--gpu}).
+    \item \texttt{pic\_validation}: Langmuir, conservation, and two-stream diagnostics.
+    \item \texttt{pic\_test}: unit tests for charge conservation (CPU and optional CUDA).
+\end{itemize}
+
+\subsection{Module architecture}
+Figure~\ref{fig:architecture} shows data flow.
+\texttt{ParticlesSoA}/\texttt{ParticlesAoS} store macroparticle state; \texttt{FieldGrid} holds $\rho$, $\phi$, and $\mathbf{E}$.
+\texttt{DepositionConfig} selects scheme, layout, sorting, thread count, and backend at runtime.
+\texttt{cell\_sort} reorders particles by cell index; deposition kernels in \texttt{src/deposition/} implement NGP, CIC, TSC, and Esirkepov for CPU and CUDA.
+\texttt{PoissonSolverFFT} (FFTW) solves for $\phi$; gather and push routines complete the leapfrog cycle.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    node distance=1.1cm,
+    box/.style={draw, rounded corners, minimum width=2.6cm, minimum height=0.7cm, align=center, font=\small},
+    arr/.style={-{Stealth[length=2mm]}, thick}
+]
+\node[box] (particles) {Particles\\(AoS/SoA)};
+\node[box, right=of particles] (sort) {Cell sort};
+\node[box, right=of sort] (deposit) {Deposition\\NGP/CIC/TSC/Esir};
+\node[box, below=1.0cm of deposit] (grid) {FieldGrid $\rho,\phi,\mathbf{E}$};
+\node[box, left=of grid] (poisson) {Poisson FFT};
+\node[box, left=of poisson] (gather) {Gather \& push};
+\draw[arr] (particles) -- (sort);
+\draw[arr] (sort) -- (deposit);
+\draw[arr] (deposit) -- (grid);
+\draw[arr] (grid) -- (poisson);
+\draw[arr] (poisson) -- (gather);
+\draw[arr] (gather) -- (particles);
+\end{tikzpicture}
+\caption{Program data flow for one explicit PIC timestep (Esirkepov: deposit$\rightarrow$solve$\rightarrow$push$\rightarrow$gather).}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Timestep cycle}
+For NGP, CIC, and TSC the code pushes particles, optionally sorts, deposits charge, adds a neutralizing background when required by validation modes, solves Poisson's equation, and gathers fields to update velocities.
+Esirkepov deposits along the particle trajectory using the pre-push position and displacement $\mathbf{v}_p\Delta t$, solves Poisson's equation, advances positions with the pre-field velocity, then gathers fields to update velocities for the next step.

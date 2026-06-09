@@ -1,0 +1,70 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{CPU results (Apple M1 Pro)}
+Deposit-kernel runtimes, bandwidth, charge error, energy drift, OpenMP scaling, and layout/sort breakdown follow the archived \texttt{benchmark.csv} (Figs.~\ref{fig:runtime}--\ref{fig:sort}).
+At $N_p=10^5$ on a $128^2$ grid with SoA sorted layout, CIC completes in 0.59\,ms, TSC in 0.90\,ms, and Esirkepov in 4.33\,ms; TSC achieves the lowest spectral noise (0.26).
+Eight-thread OpenMP privatization reduces CIC deposit time to 0.18\,ms at the same settings.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig1_runtime_vs_particles.pdf}
+    \caption{Deposit-kernel runtime vs.\ $N_p$ (M1 Pro, $128^2$, SoA, sorted).}
+    \label{fig:runtime}
+\end{figure}
+
+\subsection{Full-timestep breakdown and amortized sorting}
+Figure~\ref{fig:timestep} reports average per-stage times from \texttt{pic\_benchmark --timestep} for CIC with SoA sorting at $128^2$.
+Poisson FFT and cell sorting dominate at moderate $N_p$ when sorting runs every step; deposition remains sub-millisecond at $N_p=10^5$.
+Figure~\ref{fig:amortized} shows that sorting every $K=10$ or $K=100$ steps reduces amortized sort cost proportionally, making deposit and Poisson competitive---a realistic production-PIC assumption.
+Representative deposit times include run-to-run spread (Table~\ref{tab:summary}, mean $\pm$ std over five repeats).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig13_timestep_breakdown.pdf}
+    \caption{Full PIC timestep breakdown (CIC, SoA, sorted every step, M1 Pro).}
+    \label{fig:timestep}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig15_amortized_sort.pdf}
+    \caption{Amortized sort interval $K$ vs.\ per-timestep cost ($N_p=10^5$, $128^2$, CIC).}
+    \label{fig:amortized}
+\end{figure}
+
+\input{../figures/benchmark_summary.tex}
+
+\subsection{GPU results (Tesla T4, same host)}
+GPU atomic deposition achieves $5.3\times$ speedup over T4-host CPU for CIC at $N_p=10^5$ (4.24\,ms $\rightarrow$ 0.81\,ms); see Figs.~\ref{fig:gpu_runtime} and~\ref{fig:gpu_speedup}.
+Multi-block privatized tiles preserve charge conservation but remain $\sim$6$\times$ slower than atomics because each tile scans all particles (Table~\ref{tab:gpu_priv}, Appendix~\ref{app:gpu}).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig8_gpu_runtime.pdf}
+    \caption{CPU vs.\ GPU atomic runtime (T4, $128^2$).}
+    \label{fig:gpu_runtime}
+\end{figure}
+
+\subsection{Roofline and cross-platform analysis}
+Figure~\ref{fig:roofline} places deposition in the memory-bandwidth-limited region; Figure~\ref{fig:bandwidth} reports effective GB/s vs.\ grid size.
+Table~\ref{tab:cross_platform} in Section~\ref{sec:code_comparison} summarizes labeled M1 vs.\ T4 metrics.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig10_roofline.pdf}
+    \caption{Roofline-style deposition performance ($N_p=10^5$, $128^2$).}
+    \label{fig:roofline}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{fig2_bandwidth_vs_grid.pdf}
+    \caption{Effective memory bandwidth vs.\ grid size ($10^5$ particles, M1 Pro).}
+    \label{fig:bandwidth}
+\end{figure}
+
+\input{../figures/cross_platform_summary.tex}
+
+\input{../figures/gpu_summary.tex}
+\input{../figures/gpu_priv_summary.tex}

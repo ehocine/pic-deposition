@@ -26,6 +26,7 @@ struct DepositionConfig {
 struct DepositionStats {
     double sort_ms = 0.0;
     double deposit_ms = 0.0;
+    double deposit_std_ms = 0.0;
     double time_ms = 0.0;
     double throughput_particles_per_s = 0.0;
     double effective_bandwidth_gbs = 0.0;

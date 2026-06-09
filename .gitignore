@@ -2,5 +2,8 @@ build/
 compile_commands.json
 results/
 .DS_Store
+__pycache__/
+*.pyc
+*.log
 *.csv
 !data/benchmarks/*.csv

@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering
+\small
+\caption{CPU vs GPU atomic deposition on Tesla T4 ($N_p=10^5$, $128^2$ grid, SoA).}
+\label{tab:gpu_summary}
+\begin{tabular}{lrrr}
+\toprule
+Scheme & CPU (ms) & GPU (ms) & Speedup \\
+\midrule
+NGP & 3.55 & 0.80 & 4.4$\times$ \\
+CIC & 4.24 & 0.81 & 5.3$\times$ \\
+TSC & 5.46 & 0.86 & 6.3$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}

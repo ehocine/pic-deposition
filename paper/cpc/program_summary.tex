@@ -1,0 +1,27 @@
+\section*{Program Summary}
+
+\noindent\textbf{Program Title:} PIC Deposition Benchmark Suite (2D electrostatic reference)\\
+\textbf{Developer's repository link:} \url{https://github.com/ehocine/pic-deposition}\\
+\textbf{Licensing provisions:} MIT license\\
+\textbf{Programming language:} C++17; optional CUDA\\
+\textbf{Supplementary material:} Archived benchmark CSVs in \texttt{data/benchmarks/}; figure scripts in \texttt{scripts/plot\_results.py}\\
+\textbf{Journal Reference of previous version:} Not applicable\\
+\textbf{Does the new version supersede the previous version?:} Not applicable
+
+\subsection*{Nature of problem}
+Explicit Particle-In-Cell (PIC) simulations spend a large fraction of each timestep in charge deposition: irregular, scatter-oriented updates from macroparticles to a structured grid.
+Practitioners must choose among deposition schemes (NGP, CIC, TSC, Esirkepov) and implementation strategies (particle layout, sorting, CPU privatization, GPU atomics) while preserving charge conservation and controlling grid noise over thousands of timesteps.
+A reproducible reference that isolates deposition-kernel performance and couples it to standard physics diagnostics is needed to compare schemes before porting kernels into production PIC codes such as PIConGPU or Smilei.
+
+\subsection*{Solution method}
+The program implements a 2D electrostatic PIC cycle with FFT-based Poisson solve, four deposition schemes behind a unified \texttt{DepositionConfig} interface, and separate timing of cell sorting versus deposit-kernel execution.
+OpenMP thread-local grid privatization is provided for CPU runs; CUDA backends implement global atomics and multi-block spatial-tile privatization for CIC.
+Bundled executables (\texttt{pic\_test}, \texttt{pic\_benchmark}, \texttt{pic\_validation}, \texttt{pic\_sim}) run microbenchmarks, full-timestep profiles, Langmuir-wave and two-stream validation, and long-run conservation studies.
+Results are written as CSV files and converted to publication figures via \texttt{scripts/plot\_results.py}.
+
+\subsection*{Additional comments including Restrictions and Unusual features}
+The code targets 2D electrostatic problems on a unit-square periodic domain; electromagnetic current deposition, MPI domain decomposition, and 3D stencils are not included.
+GPU benchmarks require CUDA (\texttt{BUILD\_CUDA=ON}) or the provided Kaggle script; cross-platform CPU (Apple M1 Pro) and GPU (Tesla T4) results must be interpreted with explicit hardware labels.
+Esirkepov deposition uses deposit$\rightarrow$solve$\rightarrow$push$\rightarrow$gather (trajectory deposit at step start, position advance with pre-field velocity, then velocity update).
+The multi-block GPU privatized kernel preserves charge conservation but scans all particles per spatial tile and is slower than atomics on tested grids.
+A Zenodo DOI (\texttt{TODO-DOI}) will be assigned at release.

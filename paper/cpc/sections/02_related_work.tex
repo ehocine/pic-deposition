@@ -1,0 +1,22 @@
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Classical deposition and conservation}
+Early PIC studies established that grid resolution and shape-function choice control aliasing noise and numerical heating~\cite{langdon1970,okuda1972}.
+Brackbill and Barnes showed that discrete charge non-conservation can destabilize long-time integrations~\cite{brackbill1980}, motivating exact deposition schemes.
+Esirkepov's trajectory-based method provides rigorous charge conservation for arbitrary shape factors~\cite{esirkepov2001}, while Eastwood's virtual-particle formulation extended conservative deposition to electromagnetic PIC~\cite{eastwood1981}.
+
+\subsection{Production PIC codes}
+PIConGPU~\cite{burau2010,huebl2019} targets large-scale electromagnetic PIC on heterogeneous supercomputers, combining Esirkepov or EZ (Esirkepov-meets-ZigZag) current deposition~\cite{steiniger2023} with supercell-local caching strategies that reduce global atomic contention on GPUs.
+Smilei~\cite{derouillat2018} couples cycle-sort particle reordering with SIMD-vectorized deposition and gathering; Beck et al.\ report operator speedups of up to $\sim$3$\times$ when sorting enables vectorized projection at sufficient particles-per-cell~\cite{beck2019}.
+Both codes address production-scale 3D electromagnetic physics; they do not provide a compact, deposition-focused reference for comparing NGP/CIC/TSC/Esirkepov under identical 2D electrostatic settings with separated sort and deposit timing.
+
+\subsection{Hybrid and GPU deposition engineering}
+Harvey et al.\ implemented charge-conserving deposition on hybrid CPU--GPU systems and reported up to $\sim$4$\times$ GPU speedup over a CPU baseline for tiled privatized deposition on tested hybrid nodes~\cite{harvey2015}.
+Viereck et al., in a CPC survey of emerging architectures, concluded that PIC scatter operations are memory-bandwidth limited and that privatized or tiled accumulation can outperform naive atomics when contention is high, but that the optimal strategy is architecture dependent~\cite{viereck2016}.
+Wilke et al.\ discussed GPU PIC strategies for exascale systems~\cite{wilke2017}; Huebl et al.\ analyzed CPU/GPU cluster scalability of the PIConGPU deposition pipeline~\cite{huebl2014}.
+Our roofline-style analysis and separate M1 versus T4-host reporting follow Viereck's recommendation to treat deposition as a memory problem rather than a floating-point ceiling problem.
+
+\subsection{This program's niche}
+The present program is a lightweight 2D electrostatic reference for deposition research and teaching: four schemes behind one runtime interface, explicit separation of sort and deposit-kernel timing, bundled charge/energy/spectral/Langmuir/two-stream/conservation diagnostics, and archived CSV pipelines for figure regeneration.
+It is not a replacement for PIConGPU or Smilei in production laser-plasma or exascale campaigns; it is intended as a reproducible benchmark suite for scheme, layout, sorting, and backend selection prior to porting kernels into larger codes.

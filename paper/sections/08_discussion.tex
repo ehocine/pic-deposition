@@ -13,21 +13,32 @@ SoA and AoS achieve comparable deposit-kernel throughput on Apple Silicon; SoA's
 The choice of layout should therefore be guided by the full timestep profile, not the deposit kernel alone.
 
 \subsection{Parallelism Limits}
-OpenMP privatization removes atomic contention and yields a $4.4\times$ speedup from one to eight threads for CIC, but scaling flattens beyond two threads.
+OpenMP privatization removes atomic contention and yields a $4.4\times$ speedup from one to eight threads for CIC on Apple M1 Pro, but scaling flattens beyond two threads.
 Each thread allocates a full-grid private buffer ($T \times N_x N_y$ doubles) and merges through a critical section, so merge cost and memory bandwidth become the bottleneck.
-GPU atomics versus privatized tiles remain to be benchmarked on NVIDIA hardware where higher memory bandwidth and many lightweight threads may shift this balance.
+On a Tesla T4, atomic GPU deposition exceeds single-threaded T4-host CPU times by $5$--$8\times$ at $N_p \geq 10^5$, with the largest gains for TSC and CIC where stencil width increases CPU scatter work.
+Apple M1 Pro CPU kernels remain competitive at $N_p=10^5$ when eight-thread privatization is enabled ($\sim$0.18\,ms CIC vs.\ 0.81\,ms T4 GPU atomics), but Tesla T4 GPU pulls ahead at $N_p=10^6$.
+Direct cross-platform comparison requires labeling both thread count and host CPU generation (Table~\ref{tab:cross_platform}).
+Multi-block privatized GPU tiles preserve charge conservation but underperform atomics by $5$--$6\times$ at $128^2$ because every tile block scans all particles; atomics are the practical GPU choice until particle--tile binning is implemented.
+
+\subsection{Limitations}
+Benchmarks are restricted to 2D electrostatic PIC with FFT-based Poisson solves; electromagnetic extensions and 3D stencils are not evaluated.
+GPU results use a single Tesla T4 on a Kaggle VM with PCIe host--device transfers each deposition call; fused GPU-resident timestepping would alter the roofline balance.
+The long-run conservation study uses a modest $64^2$ grid for tractable CPU runtime; larger grids may amplify Esirkepov trajectory errors.
+FLOP-based roofline estimates are heuristic and should be interpreted alongside measured bandwidth, not as absolute compute ceilings.
 
 \section{Conclusion}
 We presented a unified, reproducible framework for evaluating charge deposition in 2D electrostatic PIC simulations.
-The codebase implements four deposition schemes behind a common runtime interface, separates sort from deposit timing, and couples performance benchmarks with charge, energy, spectral-noise, and Langmuir-wave validation.
-On Apple Silicon, CIC offers the strongest accuracy--performance trade-off for CPU production runs; layout choice depends on whether sort overhead or attribute-access patterns dominate the full timestep.
+The codebase implements four deposition schemes behind a common runtime interface, separates sort from deposit timing, and couples performance benchmarks with charge, energy, spectral-noise, Langmuir-wave, and long-run conservation validation.
+Roofline analysis confirms deposition is memory-bandwidth limited on both Apple M1 Pro and Tesla T4; locality and parallelism dominate over instruction tuning.
+On Apple Silicon, CIC with OpenMP privatization offers the strongest CPU trade-off; on Tesla T4, GPU atomics are preferable at large $N_p$.
+Layout choice depends on whether sort overhead or attribute-access patterns dominate the full timestep.
 Esirkepov is preferable when trajectory-based charge conservation is paramount and particle counts are moderate.
 NGP is viable only when raw kernel speed outweighs noise tolerance.
 
 \section{Future Work}
 Planned extensions include:
 \begin{itemize}
-    \item CUDA benchmarking of atomic and privatized-tile kernels on Linux clusters with cuFFT-coupled Poisson solves.
+    \item Multi-block GPU privatized tiles and cuFFT-coupled Poisson solves on Linux clusters.
     \item MPI domain decomposition with ghost-cell exchange to scale beyond shared memory.
     \item 3D extension with face-aligned sorting and wider stencils.
     \item Electromagnetic PIC with charge-conserving current deposition~\cite{decyk1996,wilke2017}.

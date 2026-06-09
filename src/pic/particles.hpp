@@ -30,6 +30,7 @@ public:
     void resize(std::size_t count);
     void initializeUniformMaxwellian(const Domain& domain, double T, unsigned seed);
     void initializeLangmuirWave(const Domain& domain, double amplitude, int mode, unsigned seed);
+    void initializeTwoStream(const Domain& domain, double beam_velocity, double perturbation, unsigned seed);
     double totalCharge() const;
     double kineticEnergy() const;
 
@@ -46,6 +47,7 @@ public:
     void resize(std::size_t count);
     void initializeUniformMaxwellian(const Domain& domain, double T, unsigned seed);
     void initializeLangmuirWave(const Domain& domain, double amplitude, int mode, unsigned seed);
+    void initializeTwoStream(const Domain& domain, double beam_velocity, double perturbation, unsigned seed);
     double totalCharge() const;
     double kineticEnergy() const;
 

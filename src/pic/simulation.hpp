@@ -24,9 +24,23 @@ struct SimulationConfig {
     unsigned seed = 42;
     double temperature = 1.0;
     bool sorted = false;
+    int sort_interval = 1;
     bool langmuir_mode = false;
     double langmuir_amplitude = 0.01;
     int langmuir_mode_number = 1;
+    bool two_stream_mode = false;
+    double two_stream_beam_velocity = 0.3;
+    double two_stream_perturbation = 0.01;
+};
+
+struct TimestepProfile {
+    double push_ms = 0.0;
+    double sort_ms = 0.0;
+    double deposit_ms = 0.0;
+    double poisson_ms = 0.0;
+    double gather_ms = 0.0;
+    double total_ms = 0.0;
+    int sort_interval = 1;
 };
 
 struct SimulationResult {
@@ -44,6 +58,7 @@ public:
     explicit Simulation(SimulationConfig config);
 
     SimulationResult run();
+    std::pair<SimulationResult, TimestepProfile> runProfiled(int warmup_steps = 3, int timed_steps = 20);
 
 private:
     SimulationConfig config_;

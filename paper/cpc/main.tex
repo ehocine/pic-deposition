@@ -1,0 +1,63 @@
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\graphicspath{{../figures/}}
+
+\journal{Computer Physics Communications}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{PIC Deposition Benchmark Suite: A Reproducible Reference for Charge Deposition in Two-Dimensional Electrostatic Particle-In-Cell Simulations}
+
+\author[inst]{Elhadj Hocine}
+\ead{hocineelhadj@gmail.com}
+\address[inst]{Independent Researcher}
+
+\begin{abstract}
+Charge deposition dominates cost and accuracy in explicit Particle-In-Cell (PIC) plasma simulations.
+We present an open-source 2D electrostatic reference program that evaluates Nearest Grid Point (NGP), Cloud-In-Cell (CIC), Triangular-Shaped Cloud (TSC), and Esirkepov deposition under cache-aware CPU optimizations and optional CUDA backends.
+The suite separates cell-sort cost from deposit-kernel throughput, profiles full PIC timesteps (push, sort, deposit, Poisson solve, gather), and bundles charge, energy, spectral-noise, Langmuir-wave, two-stream, and long-run conservation validation.
+Benchmarks on Apple M1 Pro and Tesla T4 (same-host CPU baseline) show deposition is memory-bandwidth limited; CIC offers the best CPU accuracy--performance trade-off and GPU atomics are preferred at large particle counts on T4.
+Archived CSV pipelines regenerate all figures.
+Source code and data are available at \url{https://github.com/ehocine/pic-deposition} (Zenodo DOI: \texttt{TODO-DOI}).
+\end{abstract}
+
+\begin{keyword}
+Particle-In-Cell \sep charge deposition \sep benchmark \sep reproducibility \sep GPU \sep plasma simulation
+\end{keyword}
+
+\end{frontmatter}
+
+\input{program_summary}
+
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{../sections/03_methods}
+\input{sections/04_program_structure}
+\input{sections/05_installation}
+\input{../sections/06_methodology}
+\input{sections/07_results}
+\input{sections/08_physics_validation}
+\input{sections/08_literature_gamma}
+\input{sections/08_experimental_scope}
+\input{sections/09_code_comparison}
+\input{sections/10_conclusions}
+\input{sections/11_code_availability}
+
+\appendix
+\input{appendix_a}
+\input{appendix_b}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{../references}
+
+\end{document}

@@ -185,6 +185,7 @@ std::vector<BenchmarkRow> BenchmarkRunner::runAll() const {
         row.case_config = c;
         row.sort_ms = stats.sort_ms;
         row.deposit_ms = stats.deposit_ms;
+        row.deposit_std_ms = stats.deposit_std_ms;
         row.deposition_ms = stats.time_ms;
         row.full_step_ms = full_ms;
         row.throughput = stats.throughput_particles_per_s;
@@ -206,16 +207,90 @@ std::vector<BenchmarkRow> BenchmarkRunner::runAll() const {
 
 void BenchmarkRunner::writeCsv(const std::string& path, const std::vector<BenchmarkRow>& rows) const {
     std::ofstream out(path);
-    out << "num_particles,grid,scheme,layout,sorted,backend,threads,sort_ms,deposit_ms,deposition_ms,"
-           "full_step_ms,throughput,bandwidth_gbs,charge_error,energy_drift,spectral_noise,speedup\n";
+    out << "num_particles,grid,scheme,layout,sorted,backend,threads,sort_ms,deposit_ms,deposit_std_ms,"
+           "deposition_ms,full_step_ms,throughput,bandwidth_gbs,charge_error,energy_drift,spectral_noise,speedup\n";
     out << std::setprecision(10);
     for (const auto& row : rows) {
         const auto& c = row.case_config;
         out << c.num_particles << ',' << c.grid_n << 'x' << c.grid_n << ',' << schemeName(c.scheme) << ','
             << layoutName(c.layout) << ',' << (c.sorted ? "on" : "off") << ',' << backendName(c.backend) << ','
-            << c.num_threads << ',' << row.sort_ms << ',' << row.deposit_ms << ',' << row.deposition_ms << ','
+            << c.num_threads << ',' << row.sort_ms << ',' << row.deposit_ms << ',' << row.deposit_std_ms << ','
+            << row.deposition_ms << ','
             << row.full_step_ms << ',' << row.throughput << ',' << row.bandwidth_gbs << ',' << row.charge_error << ','
             << row.energy_drift << ',' << row.spectral_noise << ',' << row.speedup << '\n';
+    }
+}
+
+std::vector<TimestepProfileRow> BenchmarkRunner::runAmortizedTimestepProfiles() {
+    const std::vector<int> intervals = {1, 10, 100};
+    std::vector<TimestepProfileRow> rows;
+    for (int interval : intervals) {
+        SimulationConfig cfg;
+        cfg.domain.Nx = 128;
+        cfg.domain.Ny = 128;
+        cfg.domain.Lx = 1.0;
+        cfg.domain.Ly = 1.0;
+        cfg.domain.dt = 0.01;
+        cfg.domain.steps = 123;
+        cfg.domain.updateDerived();
+        cfg.num_particles = 100000;
+        cfg.scheme = DepositionScheme::CIC;
+        cfg.layout = ParticleLayout::SoA;
+        cfg.sorted = true;
+        cfg.sort_interval = interval;
+
+        Simulation sim(cfg);
+        const auto [_, profile] = sim.runProfiled(3, 100);
+        TimestepProfileRow row;
+        row.num_particles = cfg.num_particles;
+        row.grid_n = 128;
+        row.scheme = DepositionScheme::CIC;
+        row.sort_interval = interval;
+        row.profile = profile;
+        rows.push_back(row);
+    }
+    return rows;
+}
+
+std::vector<TimestepProfileRow> BenchmarkRunner::runTimestepProfiles() {
+    const std::vector<std::size_t> particle_counts = {10000, 100000, 1000000};
+    std::vector<TimestepProfileRow> rows;
+    for (std::size_t np : particle_counts) {
+        SimulationConfig cfg;
+        cfg.domain.Nx = 128;
+        cfg.domain.Ny = 128;
+        cfg.domain.Lx = 1.0;
+        cfg.domain.Ly = 1.0;
+        cfg.domain.dt = 0.01;
+        cfg.domain.steps = 23;
+        cfg.domain.updateDerived();
+        cfg.num_particles = np;
+        cfg.scheme = DepositionScheme::CIC;
+        cfg.layout = ParticleLayout::SoA;
+        cfg.sorted = true;
+
+        Simulation sim(cfg);
+        const auto [_, profile] = sim.runProfiled(3, 20);
+        TimestepProfileRow row;
+        row.num_particles = np;
+        row.grid_n = 128;
+        row.scheme = DepositionScheme::CIC;
+        row.profile = profile;
+        rows.push_back(row);
+    }
+    return rows;
+}
+
+void BenchmarkRunner::writeTimestepProfileCsv(const std::string& path,
+                                              const std::vector<TimestepProfileRow>& rows) {
+    std::ofstream out(path);
+    out << "num_particles,grid,scheme,sort_interval,push_ms,sort_ms,deposit_ms,poisson_ms,gather_ms,total_ms\n";
+    out << std::setprecision(10);
+    for (const auto& row : rows) {
+        out << row.num_particles << ',' << row.grid_n << 'x' << row.grid_n << ',' << schemeName(row.scheme) << ','
+            << row.sort_interval << ',' << row.profile.push_ms << ',' << row.profile.sort_ms << ','
+            << row.profile.deposit_ms << ',' << row.profile.poisson_ms << ',' << row.profile.gather_ms << ','
+            << row.profile.total_ms << '\n';
     }
 }
 

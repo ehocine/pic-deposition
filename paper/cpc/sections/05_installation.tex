@@ -1,0 +1,37 @@
+\section{Installation and test suite}
+\label{sec:install}
+
+\subsection{Build requirements}
+\begin{itemize}
+    \item CMake $\geq$ 3.18, C++17 compiler, FFTW3, OpenMP.
+    \item Optional CUDA toolkit for \texttt{BUILD\_CUDA=ON} (Tesla T4, \texttt{sm\_75}).
+    \item Python 3.10+ with \texttt{matplotlib} and \texttt{pandas} for figure regeneration.
+\end{itemize}
+
+\subsection{Build matrix}
+\begin{verbatim}
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+# Optional GPU:
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_CUDA=ON
+\end{verbatim}
+
+\subsection{Test suite}
+\texttt{./build/pic\_test} must report:
+\begin{verbatim}
+PASS CIC charge conservation
+PASS TSC charge conservation
+PASS Esirkepov charge conservation
+PASS NGP charge conservation
+PASS GPU CIC atomics charge conservation      # CUDA builds only
+PASS GPU CIC privatized charge conservation   # CUDA builds only
+\end{verbatim}
+Exit code 0 indicates success.
+
+\subsection{Example workflows}
+The \texttt{examples/} directory provides:
+\begin{itemize}
+    \item \texttt{examples/cic\_benchmark.sh}: minimal CIC microbenchmark reproducing one archived CSV row.
+    \item \texttt{examples/run\_validation.sh}: Langmuir + conservation + two-stream validation.
+\end{itemize}
+After running benchmarks, archive CSVs to \texttt{data/benchmarks/} and execute \texttt{python3 scripts/plot\_results.py}.

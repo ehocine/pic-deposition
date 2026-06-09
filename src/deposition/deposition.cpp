@@ -220,17 +220,38 @@ DepositionStats depositChargeTimedAoS(const ParticlesAoS& particles, FieldGrid& 
         sort_seconds = std::chrono::duration<double>(sort_end - sort_start).count();
     }
 
-    const auto dep_start = std::chrono::steady_clock::now();
+    std::vector<double> samples;
+    samples.reserve(static_cast<std::size_t>(repeats));
     for (int i = 0; i < repeats; ++i) {
+        const auto dep_start = std::chrono::steady_clock::now();
         depositKernelAoS(ordered, grid, dep);
+        const auto dep_end = std::chrono::steady_clock::now();
+        samples.push_back(std::chrono::duration<double>(dep_end - dep_start).count() * 1000.0);
     }
-    const auto dep_end = std::chrono::steady_clock::now();
-    const double deposit_seconds = std::chrono::duration<double>(dep_end - dep_start).count() / repeats;
+    double deposit_seconds = 0.0;
+    double deposit_std_ms = 0.0;
+    if (!samples.empty()) {
+        double sum = 0.0;
+        for (double v : samples) sum += v;
+        deposit_seconds = (sum / static_cast<double>(samples.size())) / 1000.0;
+        if (samples.size() > 1) {
+            double var = 0.0;
+            const double mean_ms = sum / static_cast<double>(samples.size());
+            for (double v : samples) {
+                const double d = v - mean_ms;
+                var += d * d;
+            }
+            deposit_std_ms = std::sqrt(var / static_cast<double>(samples.size() - 1));
+        }
+    }
 
     const double charge_error = chargeConservationError(grid.integratedRho(), particles.totalCharge(),
                                                         totalAbsChargeAoS(particles));
-    return finalizeStats(config, particles.size(), grid.domain().Nx, grid.domain().Ny, sort_seconds, deposit_seconds,
-                         charge_error);
+    DepositionStats stats =
+        finalizeStats(config, particles.size(), grid.domain().Nx, grid.domain().Ny, sort_seconds, deposit_seconds,
+                      charge_error);
+    stats.deposit_std_ms = deposit_std_ms;
+    return stats;
 }
 
 DepositionStats depositChargeTimedSoA(const ParticlesSoA& particles, FieldGrid& grid,
@@ -254,17 +275,38 @@ DepositionStats depositChargeTimedSoA(const ParticlesSoA& particles, FieldGrid& 
         sort_seconds = std::chrono::duration<double>(sort_end - sort_start).count();
     }
 
-    const auto dep_start = std::chrono::steady_clock::now();
+    std::vector<double> samples;
+    samples.reserve(static_cast<std::size_t>(repeats));
     for (int i = 0; i < repeats; ++i) {
+        const auto dep_start = std::chrono::steady_clock::now();
         depositKernelSoA(ordered, grid, dep);
+        const auto dep_end = std::chrono::steady_clock::now();
+        samples.push_back(std::chrono::duration<double>(dep_end - dep_start).count() * 1000.0);
     }
-    const auto dep_end = std::chrono::steady_clock::now();
-    const double deposit_seconds = std::chrono::duration<double>(dep_end - dep_start).count() / repeats;
+    double deposit_seconds = 0.0;
+    double deposit_std_ms = 0.0;
+    if (!samples.empty()) {
+        double sum = 0.0;
+        for (double v : samples) sum += v;
+        deposit_seconds = (sum / static_cast<double>(samples.size())) / 1000.0;
+        if (samples.size() > 1) {
+            double var = 0.0;
+            const double mean_ms = sum / static_cast<double>(samples.size());
+            for (double v : samples) {
+                const double d = v - mean_ms;
+                var += d * d;
+            }
+            deposit_std_ms = std::sqrt(var / static_cast<double>(samples.size() - 1));
+        }
+    }
 
     const double charge_error = chargeConservationError(grid.integratedRho(), particles.totalCharge(),
                                                         totalAbsChargeSoA(particles));
-    return finalizeStats(config, particles.size(), grid.domain().Nx, grid.domain().Ny, sort_seconds, deposit_seconds,
-                         charge_error);
+    DepositionStats stats =
+        finalizeStats(config, particles.size(), grid.domain().Nx, grid.domain().Ny, sort_seconds, deposit_seconds,
+                      charge_error);
+    stats.deposit_std_ms = deposit_std_ms;
+    return stats;
 }
 
 void gatherFieldsAoS(ParticlesAoS& particles, FieldGrid& grid, double dt) {

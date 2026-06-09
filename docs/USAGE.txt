@@ -1,0 +1,36 @@
+PIC Deposition Benchmark Suite — Usage
+======================================
+
+Build (Release):
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+  cmake --build build -j
+
+Tests:
+  ./build/pic_test
+  Expected: PASS lines for CIC, TSC, Esirkepov, NGP charge conservation.
+
+Microbenchmarks:
+  ./build/pic_benchmark
+  Archives to results/benchmark_<timestamp>.csv
+
+Full validation (Langmuir + conservation + two-stream + noise grid):
+  ./build/pic_benchmark --validate
+
+Timestep profiling:
+  ./build/pic_benchmark --timestep
+  ./build/pic_benchmark --amortized
+
+GPU (CUDA build):
+  cmake -S . -B build -DBUILD_CUDA=ON
+  ./build/pic_benchmark --gpu
+
+Regenerate figures:
+  python3 scripts/plot_results.py
+
+Compile CPC paper:
+  bash scripts/compile_cpc_paper.sh
+
+Key CSV outputs (archive to data/benchmarks/):
+  benchmark.csv, benchmark_gpu.csv, validation.csv,
+  conservation_study.csv, two_stream_validation.csv,
+  timestep_profile.csv, amortized_timestep.csv, noise_vs_grid.csv
