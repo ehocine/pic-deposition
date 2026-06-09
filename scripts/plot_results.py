@@ -618,7 +618,7 @@ def main() -> None:
     parser.add_argument("--csv", type=Path, default=None)
     parser.add_argument("--validation-csv", type=Path, default=None)
     parser.add_argument("--results-dir", type=Path, default=Path("data/benchmarks"))
-    parser.add_argument("--figures-dir", type=Path, default=Path("paper/figures"))
+    parser.add_argument("--figures-dir", type=Path, default=Path("figures"))
     args = parser.parse_args()
 
     results_dir = args.results_dir

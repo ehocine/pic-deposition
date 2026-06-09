@@ -1,6 +1,6 @@
-# Cache-Aware Charge Deposition for Electrostatic PIC Simulations
+# PIC Deposition Benchmark Suite
 
-A reproducible two-dimensional electrostatic Particle-In-Cell (PIC) framework for evaluating charge deposition schemes (NGP, CIC, TSC, Esirkepov) with cache-aware CPU optimizations, OpenMP parallelization, and physics validation benchmarks.
+A reproducible two-dimensional electrostatic Particle-In-Cell (PIC) reference program for evaluating charge deposition schemes (NGP, CIC, TSC, Esirkepov) with cache-aware CPU optimizations, optional CUDA backends, OpenMP parallelization, and bundled validation benchmarks.
 
 ## Prerequisites
 
@@ -48,73 +48,41 @@ cmake --build build -j
 ./build/pic_benchmark --gpu
 ```
 
-## Conservation Study
-
-Long-run (2000-step) charge and energy conservation at $N_p=10^4$, $64^2$ grid:
-
-```bash
-./build/pic_benchmark --conservation
-```
-
-Output is archived to `data/benchmarks/conservation_study.csv` by `run_all_benchmarks.sh`.
-
-## Kaggle (free GPU)
-
-1. Create a Kaggle notebook and enable **GPU** (Settings → Accelerator → GPU T4).
-2. Attach this repo as a [Dataset](https://www.kaggle.com/docs/datasets) or push to GitHub and upload.
-3. Run:
+On Kaggle or other CUDA hosts:
 
 ```bash
 bash scripts/kaggle_gpu_benchmark.sh
 ```
 
-The script auto-copies from read-only `/kaggle/input/` to `/kaggle/working/pic` before building.
-Results are written to `data/benchmarks/benchmark_gpu.csv` inside the working copy and copied to `/kaggle/working/benchmark_gpu.csv` for download.
+### Other benchmark modes
 
-### Re-run after GPU kernel updates
+```bash
+./build/pic_benchmark --validate      # Langmuir + conservation + two-stream + noise grid
+./build/pic_benchmark --timestep      # full PIC timestep breakdown
+./build/pic_benchmark --amortized       # sort-interval sweep
+./build/pic_benchmark --conservation    # 2000-step conservation study
+```
 
-After updating `src/deposition/cuda/deposition_cuda.cu` (e.g. multi-block privatized tiles), re-run on Kaggle to refresh GPU benchmarks:
+## Regenerate Figures
 
-1. Upload the updated project as a Kaggle dataset or sync from GitHub.
-2. Run `bash scripts/kaggle_gpu_benchmark.sh` in a GPU-enabled notebook.
-3. Download `/kaggle/working/benchmark_gpu.csv` and replace `data/benchmarks/benchmark_gpu.csv` locally.
-4. Regenerate figures: `python3 scripts/plot_results.py`.
-
-Verify `GPU_Priv` CIC rows at $128^2$ are competitive with `GPU_Atomics` (not hundreds of ms as with the old single-block kernel).
-
-## Regenerate Paper Figures
+From archived CSVs in `data/benchmarks/`:
 
 ```bash
 pip install -r requirements.txt
 python3 scripts/plot_results.py
 ```
 
-## Compile Paper
-
-IEEE conference draft:
-
-```bash
-bash scripts/compile_paper.sh
-```
-
-Output: `paper/main.pdf`
-
-CPC journal draft (elsarticle + Program Summary):
-
-```bash
-bash scripts/compile_cpc_paper.sh
-```
-
-Output: `paper/cpc/main.pdf`
+Output PDFs are written to `figures/` (not tracked in git by default).
 
 ## Project Layout
 
 | Path | Description |
 |------|-------------|
 | `src/` | C++ PIC simulation and deposition kernels |
-| `scripts/` | Benchmark runner, figure plotting, paper compilation |
-| `data/benchmarks/` | Archived CSV results for figure regeneration |
-| `paper/` | LaTeX source and generated figures |
+| `scripts/` | Benchmark runner and figure plotting |
+| `data/benchmarks/` | Archived CSV results for reproducibility |
+| `examples/` | Example benchmark shell scripts |
+| `docs/` | Usage notes |
 | `results/` | Ephemeral benchmark output (timestamped CSVs) |
 
 ## Citation
@@ -124,7 +92,7 @@ If you use this code or benchmark data in published work, please cite:
 ```bibtex
 @software{hocine2026picdeposition,
   author = {Hocine, Elhadj},
-  title = {Cache-Aware and GPU-Accelerated Charge Deposition for Electrostatic PIC Simulations},
+  title = {PIC Deposition Benchmark Suite},
   year = {2026},
   url = {https://github.com/ehocine/pic-deposition},
   version = {1.0.0},
@@ -136,10 +104,9 @@ Metadata is also in [`CITATION.cff`](CITATION.cff) for GitHub and Zenodo integra
 
 ### Zenodo DOI
 
-1. Push this repository to GitHub (`https://github.com/ehocine/pic-deposition`).
-2. Enable the [Zenodo–GitHub integration](https://zenodo.org/account/settings/github/).
-3. Create a GitHub release tagged `v1.0.0`.
-4. Replace `TODO-DOI` in `CITATION.cff`, `paper/main.tex`, and this README with the assigned Zenodo DOI.
+1. Enable the [Zenodo–GitHub integration](https://zenodo.org/account/settings/github/) for this repository.
+2. Create a GitHub release tagged `v1.0.0`.
+3. Replace `TODO-DOI` in `CITATION.cff` and this README with the assigned Zenodo DOI.
 
 ## Full Reproducibility Workflow
 
@@ -147,11 +114,9 @@ Metadata is also in [`CITATION.cff`](CITATION.cff) for GitHub and Zenodo integra
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ./build/pic_test
-bash scripts/run_all_benchmarks.sh          # CPU microbenchmarks + sim + validation
-./build/pic_benchmark --conservation        # long-run conservation study
+bash scripts/run_all_benchmarks.sh
 pip install -r requirements.txt
-python3 scripts/plot_results.py               # figures from data/benchmarks/
-bash scripts/compile_paper.sh               # paper/main.pdf
+python3 scripts/plot_results.py
 ```
 
 GPU benchmarks require CUDA (`-DBUILD_CUDA=ON`) or Kaggle (`scripts/kaggle_gpu_benchmark.sh`).

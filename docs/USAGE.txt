@@ -24,11 +24,8 @@ GPU (CUDA build):
   cmake -S . -B build -DBUILD_CUDA=ON
   ./build/pic_benchmark --gpu
 
-Regenerate figures:
+Regenerate figures (output to figures/):
   python3 scripts/plot_results.py
-
-Compile CPC paper:
-  bash scripts/compile_cpc_paper.sh
 
 Key CSV outputs (archive to data/benchmarks/):
   benchmark.csv, benchmark_gpu.csv, validation.csv,

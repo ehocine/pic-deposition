@@ -1,7 +1,0 @@
-\section{Conclusions}
-\label{sec:conclusions}
-
-We presented a reproducible 2D electrostatic PIC deposition benchmark program with four schemes, separated sort/deposit timing, full-timestep profiling, and bundled Langmuir, two-stream, and conservation validation.
-Roofline analysis confirms deposition is memory-bandwidth limited on both Apple M1 Pro and Tesla T4.
-CIC with OpenMP privatization offers the strongest CPU trade-off; GPU atomics are preferred on T4 at large $N_p$.
-The program is intended as a teaching and kernel-evaluation reference complementary to production codes PIConGPU and Smilei, with archived CSVs and scripts for full figure regeneration.

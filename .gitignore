@@ -1,3 +1,5 @@
+paper/
+figures/
 build/
 compile_commands.json
 results/
