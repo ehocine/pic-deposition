@@ -1,5 +1,6 @@
 paper/
 figures/
+dist/
 build/
 compile_commands.json
 results/
