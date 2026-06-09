@@ -51,11 +51,24 @@ Step 5 — Still nothing? Manual upload (always works)
   h) Publish → copy DOI → paste into CITATION.cff and README
 
 
-Metadata fix already pushed to GitHub
---------------------------------------
-- Removed empty ORCID from .zenodo.json (can cause silent failure)
-- Removed invalid doi placeholder from CITATION.cff
-- Zenodo uses .zenodo.json when both files exist (CITATION.cff is ignored for archiving)
+Why Zenodo did not use CITATION.cff
+-----------------------------------
+If BOTH CITATION.cff and .zenodo.json exist in the repo, Zenodo's GitHub
+integration uses ONLY .zenodo.json and IGNORES CITATION.cff entirely
+(official Zenodo documentation).
+
+Your record 10.5281/zenodo.20607455 was built from .zenodo.json (v1.0.1 zip).
+GitHub's "Cite this repository" button still uses CITATION.cff independently.
+
+Fix applied on GitHub main
+--------------------------
+- Removed .zenodo.json (single metadata source: CITATION.cff v1.3.0)
+- CITATION.cff now includes abstract, identifiers, and doi
+
+To refresh the Zenodo record metadata from CITATION.cff (optional):
+  A) Edit the live record at https://doi.org/10.5281/zenodo.20607455 (add email, etc.)
+  B) Publish GitHub release v1.0.2 after .zenodo.json removal → new Zenodo version
+     (same concept DOI, version-specific DOI updates)
 
 
 After you have the DOI

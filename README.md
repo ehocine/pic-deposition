@@ -100,7 +100,7 @@ If you use this code or benchmark data in published work, please cite:
 }
 ```
 
-Metadata is also in [`CITATION.cff`](CITATION.cff) for GitHub and Zenodo integration.
+Metadata is in [`CITATION.cff`](CITATION.cff) (used by GitHub’s “Cite this repository” and by Zenodo when `.zenodo.json` is absent).
 
 ### Zenodo DOI
 
