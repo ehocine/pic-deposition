@@ -7,11 +7,19 @@ A. GitHub + Zenodo (software DOI) — ~30 minutes
    - Add Description: "2D electrostatic PIC charge-deposition benchmark (NGP/CIC/TSC/Esirkepov)"
    - Add Topics: particle-in-cell, plasma-simulation, benchmark, cuda, openmp, charge-deposition
 
-2. Enable Zenodo integration:
-   - https://zenodo.org/account/settings/github/
-   - Toggle ON for ehocine/pic-deposition
+2. Enable Zenodo integration (MUST be done before Zenodo sees releases):
+   - Log in at https://zenodo.org with the SAME GitHub account that owns ehocine/pic-deposition
+   - Profile menu → GitHub → click "Sync now"
+   - Find pic-deposition → toggle the switch ON (green)
+   - Refresh the page; confirm it appears under "Enabled repositories"
 
-3. GitHub release v1.0.0 (if not already created by assistant):
+3. If v1.0.0 was published BEFORE step 2, Zenodo will NOT backfill automatically.
+   Re-trigger after enabling:
+   - Option A: Edit the v1.0.0 release on GitHub (change one word in notes) → Save
+   - Option B: Publish v1.0.1 after metadata fix (see git tag on GitHub)
+   - Check status: Zenodo → GitHub → pic-deposition → look for v1.0.0/v1.0.1 row
+
+4. GitHub release v1.0.0 (already exists):
    - Releases → Draft new release → Tag v1.0.0
    - Title: v1.0.0
    - Paste body from docs/RELEASE_v1.0.0.txt

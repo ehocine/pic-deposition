@@ -1,0 +1,63 @@
+Zenodo did not pick up the GitHub release — fix checklist
+============================================================
+
+Your release exists and is valid:
+  https://github.com/ehocine/pic-deposition/releases/tag/v1.0.0
+
+Zenodo only archives a release if ALL of the following are true:
+
+1. You logged into Zenodo with the GitHub account that owns the repo
+2. The repo is toggled ON at:
+   https://zenodo.org/account/settings/github/
+   (Click "Sync now" first if pic-deposition is not listed)
+3. The release was created AFTER the repo was enabled
+   OR you re-trigger the webhook (edit release / new tag)
+
+Common failure: enable Zenodo AFTER publishing v1.0.0 → nothing happens until re-trigger.
+
+
+STEP-BY-STEP FIX (try in order)
+-------------------------------
+
+Step 1 — Enable on Zenodo
+  a) https://zenodo.org → sign in with GitHub
+  b) Profile (top right) → GitHub
+  c) Click "Sync now"
+  d) Toggle ON for ehocine/pic-deposition
+  e) Refresh; confirm it shows as enabled
+
+Step 2 — Check for silent errors
+  On the same Zenodo GitHub page, click pic-deposition.
+  Look for v1.0.0 in the list:
+    - "Published" → done (copy DOI)
+    - "Failed" / "Errors" tab → read message (often metadata)
+    - Missing entirely → webhook never fired (continue to Step 3)
+
+Step 3 — Re-trigger webhook
+  Option A (easiest): GitHub → Releases → v1.0.0 → Edit → change release notes → Update
+  Option B: New release v1.0.1 (after pulling latest main with fixed .zenodo.json)
+
+Step 4 — Wait 5–30 minutes, refresh Zenodo GitHub page
+
+Step 5 — Still nothing? Manual upload (always works)
+  a) https://zenodo.org/deposit/new
+  b) Upload: download zip from
+     https://github.com/ehocine/pic-deposition/archive/refs/tags/v1.0.0.zip
+  c) Upload type: Software
+  d) Title: PIC Deposition Benchmark Suite (same as CITATION.cff)
+  e) Version: 1.0.0
+  f) License: MIT
+  g) Related identifier: https://github.com/ehocine/pic-deposition (Relation: is supplement to)
+  h) Publish → copy DOI → paste into CITATION.cff and README
+
+
+Metadata fix already pushed to GitHub
+--------------------------------------
+- Removed empty ORCID from .zenodo.json (can cause silent failure)
+- Removed invalid doi placeholder from CITATION.cff
+- Zenodo uses .zenodo.json when both files exist (CITATION.cff is ignored for archiving)
+
+
+After you have the DOI
+----------------------
+Tell the assistant the DOI (e.g. 10.5281/zenodo.1234567) to patch papers and recompile CPC PDF.
