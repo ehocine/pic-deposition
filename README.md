@@ -96,7 +96,7 @@ If you use this code or benchmark data in published work, please cite:
   year = {2026},
   url = {https://github.com/ehocine/pic-deposition},
   version = {1.0.0},
-  doi = {10.5281/zenodo.TODO-DOI}
+  doi = {10.5281/zenodo.20607455}
 }
 ```
 
@@ -104,9 +104,7 @@ Metadata is also in [`CITATION.cff`](CITATION.cff) for GitHub and Zenodo integra
 
 ### Zenodo DOI
 
-1. Enable the [Zenodo–GitHub integration](https://zenodo.org/account/settings/github/) for this repository.
-2. Create a GitHub release tagged `v1.0.0`.
-3. Replace `TODO-DOI` in `CITATION.cff` and this README with the assigned Zenodo DOI.
+Permanent archive: [10.5281/zenodo.20607455](https://doi.org/10.5281/zenodo.20607455)
 
 ## Full Reproducibility Workflow
 
