@@ -1,0 +1,72 @@
+Publishing checklist — what YOU do manually
+==========================================
+
+A. GitHub + Zenodo (software DOI) — ~30 minutes
+-----------------------------------------------
+1. Open https://github.com/ehocine/pic-deposition/settings
+   - Add Description: "2D electrostatic PIC charge-deposition benchmark (NGP/CIC/TSC/Esirkepov)"
+   - Add Topics: particle-in-cell, plasma-simulation, benchmark, cuda, openmp, charge-deposition
+
+2. Enable Zenodo integration:
+   - https://zenodo.org/account/settings/github/
+   - Toggle ON for ehocine/pic-deposition
+
+3. GitHub release v1.0.0 (if not already created by assistant):
+   - Releases → Draft new release → Tag v1.0.0
+   - Title: v1.0.0
+   - Paste body from docs/RELEASE_v1.0.0.txt
+   - Publish release
+
+4. Wait for Zenodo to mint DOI (email + Zenodo record page).
+
+5. Replace TODO-DOI everywhere:
+   - CITATION.cff  → doi: 10.5281/zenodo.XXXXXXX
+   - README.md     → bibtex doi field
+   - paper/cpc/main.tex abstract
+   - paper/main.tex abstract
+   - paper/cpc/program_summary.tex (line 27)
+   Commit + push CITATION.cff and README only (papers stay local).
+
+6. (Optional) Add ORCID to .zenodo.json creators[0].orcid and CITATION.cff.
+
+
+B. CPC submission — recommended primary venue
+---------------------------------------------
+Choose ONE track:
+
+  Option 1 — CPiP (Program paper, ~10 pages + Program Summary)
+    Journal: Computer Physics Communications
+    Upload: paper/cpc/main.pdf
+    Supplement: Zenodo DOI + GitHub URL
+    Cover letter: paper/cpc/cover_letter.txt
+
+  Option 2 — Full article (if editor agrees benchmark scope fits)
+    Same PDF, longer narrative already in paper/cpc/
+
+Submission portal: https://www.editorialmanager.com/comphy/default.aspx
+
+Attach:
+  - main.pdf (from: bash scripts/compile_cpc_paper.sh)
+  - Cover letter (paper/cpc/cover_letter.txt)
+  - Highlights (3–5 bullets from abstract)
+  - Code availability: GitHub URL + Zenodo DOI
+
+Suggested category: "New Computer Programs" / Program Summary
+
+
+C. IEEE conference (optional, secondary)
+----------------------------------------
+  - Compile: bash scripts/compile_paper.sh → paper/main.pdf
+  - Numbers synced to data/benchmarks/benchmark.csv (June 2026)
+  - Target: HPC / plasma simulation workshop (not bundled with CPC simultaneously
+    unless you reframe one as software-only and one as methods)
+
+
+D. Before you click Submit
+--------------------------
+  [ ] pic_test passes locally
+  [ ] Zenodo DOI live (no TODO-DOI in CITATION.cff on GitHub)
+  [ ] paper/cpc/main.pdf recompiled after DOI inserted
+  [ ] cover_letter.txt customized (add ORCID if you have one)
+  [ ] Conflicts of interest: none (independent researcher)
+  [ ] Suggest 3 reviewers (plasma PIC + HPC background)

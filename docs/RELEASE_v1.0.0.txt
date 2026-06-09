@@ -1,0 +1,28 @@
+PIC Deposition Benchmark Suite v1.0.0
+======================================
+
+First public release of the 2D electrostatic PIC deposition reference program.
+
+Highlights
+----------
+- Four deposition schemes: NGP, CIC, TSC, Esirkepov
+- CPU: AoS/SoA layouts, cell sorting, OpenMP privatization
+- GPU (optional CUDA): atomic scatter and multi-block privatized CIC tiles
+- Executables: pic_test, pic_benchmark, pic_validation, pic_sim
+- Archived benchmark CSVs in data/benchmarks/
+- Validation: Langmuir waves, two-stream (NGP/CIC/TSC), conservation, noise-vs-grid
+- Figure regeneration: python3 scripts/plot_results.py
+
+Reproduce
+---------
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+  cmake --build build -j
+  ./build/pic_test
+  bash scripts/run_all_benchmarks.sh
+
+Citation
+--------
+See CITATION.cff. Zenodo DOI will be assigned automatically after this release
+if the Zenodo-GitHub integration is enabled; otherwise create a Zenodo upload manually.
+
+License: MIT

@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "Cache-Aware and GPU-Accelerated Charge Deposition for Electrostatic PIC Simulations"
+title: "PIC Deposition Benchmark Suite: A Reproducible Reference for 2D Electrostatic PIC Charge Deposition"
 message: "If you use this software, please cite it using these metadata."
 type: software
 authors:

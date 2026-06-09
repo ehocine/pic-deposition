@@ -1,5 +1,5 @@
 {
-  "title": "Cache-Aware and GPU-Accelerated Charge Deposition for Electrostatic PIC Simulations",
+  "title": "PIC Deposition Benchmark Suite: A Reproducible Reference for 2D Electrostatic PIC Charge Deposition",
   "description": "Reproducible 2D electrostatic PIC framework evaluating NGP, CIC, TSC, and Esirkepov charge deposition with cache-aware CPU optimizations, OpenMP privatization, CUDA GPU backends, physics validation, and archived benchmark data.",
   "upload_type": "software",
   "creators": [
