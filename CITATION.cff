@@ -18,7 +18,7 @@ keywords:
   - high performance computing
   - CUDA
   - OpenMP
-version: 1.0.0
+version: 1.0.2
 date-released: "2026-06-09"
 identifiers:
   - type: doi

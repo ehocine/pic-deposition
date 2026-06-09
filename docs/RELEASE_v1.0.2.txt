@@ -1,0 +1,18 @@
+PIC Deposition Benchmark Suite v1.0.2
+======================================
+
+Metadata-only release to refresh the Zenodo archive from CITATION.cff.
+
+Changes since v1.0.1
+--------------------
+- Removed .zenodo.json (Zenodo now reads CITATION.cff only)
+- CITATION.cff upgraded to v1.3.0 with abstract, email, identifiers, DOI
+- Assigned DOI: 10.5281/zenodo.20607455 (concept; new version DOI may update on ingest)
+
+Software is unchanged from v1.0.0 / v1.0.1.
+
+Citation
+--------
+See CITATION.cff in the repository root.
+
+License: MIT
