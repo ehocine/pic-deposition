@@ -1,6 +1,5 @@
-cff-version: 1.3.0
+cff-version: 1.2.0
 title: "PIC Deposition Benchmark Suite: A Reproducible Reference for 2D Electrostatic PIC Charge Deposition"
-message: "If you use this software, please cite it using these metadata."
 type: software
 abstract: "Reproducible 2D electrostatic PIC reference program evaluating NGP, CIC, TSC, and Esirkepov charge deposition with cache-aware CPU optimizations, OpenMP privatization, optional CUDA backends, physics validation, and archived benchmark CSVs."
 authors:
@@ -18,11 +17,11 @@ keywords:
   - high performance computing
   - CUDA
   - OpenMP
-version: 1.0.2
-date-released: "2026-06-09"
+version: 1.0.3
+date-released: "2026-06-16"
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.20607455
+    value: 10.5281/zenodo.20608073
   - type: url
-    value: "https://doi.org/10.5281/zenodo.20607455"
-doi: 10.5281/zenodo.20607455
+    value: "https://doi.org/10.5281/zenodo.20608073"
+doi: 10.5281/zenodo.20608073

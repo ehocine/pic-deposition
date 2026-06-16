@@ -95,8 +95,8 @@ If you use this code or benchmark data in published work, please cite:
   title = {PIC Deposition Benchmark Suite},
   year = {2026},
   url = {https://github.com/ehocine/pic-deposition},
-  version = {1.0.0},
-  doi = {10.5281/zenodo.20607455}
+  version = {1.0.3},
+  doi = {10.5281/zenodo.20608073}
 }
 ```
 
@@ -104,7 +104,7 @@ Metadata is in [`CITATION.cff`](CITATION.cff) (used by GitHub’s “Cite this r
 
 ### Zenodo DOI
 
-Permanent archive: [10.5281/zenodo.20607455](https://doi.org/10.5281/zenodo.20607455)
+Permanent archive: [10.5281/zenodo.20608073](https://doi.org/10.5281/zenodo.20608073) (concept: [10.5281/zenodo.20607454](https://doi.org/10.5281/zenodo.20607454))
 
 ## Full Reproducibility Workflow
 

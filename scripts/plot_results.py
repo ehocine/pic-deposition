@@ -454,21 +454,25 @@ def write_cross_platform_summary(cpu_df: pd.DataFrame, gpu_df: pd.DataFrame | No
     if gpu_df is None:
         out.write_text("\n".join(lines + ["\\bottomrule", "\\end{tabular}", "\\end{table}"]) + "\n", encoding="utf-8")
         return
+    # Use the full CPU frame (all thread counts) so the 8-thread column is not
+    # pre-filtered away. filter_deposition() restricts to threads==1, which would
+    # make the 8T lookup always empty.
+    m1_cpu = cpu_df[cpu_df["backend"] == "CPU"].copy()
     for np in [100000, 1000000]:
-        m1 = filter_deposition(cpu_df)
-        m1_1 = m1[(m1["scheme"] == "CIC") & (m1["layout"] == "SoA") & (m1["sorted"] == "off") &
-                  (m1["threads"] == 1) & (m1["grid_n"] == 128) & (m1["num_particles"] == np)]
-        m1_8 = m1[(m1["scheme"] == "CIC") & (m1["layout"] == "SoA") & (m1["sorted"] == "off") &
-                  (m1["threads"] == 8) & (m1["grid_n"] == 128) & (m1["num_particles"] == np)]
+        m1_base = m1_cpu[(m1_cpu["scheme"] == "CIC") & (m1_cpu["layout"] == "SoA") &
+                         (m1_cpu["sorted"] == "off") & (m1_cpu["grid_n"] == 128) &
+                         (m1_cpu["num_particles"] == np)]
+        m1_1 = m1_base[m1_base["threads"] == 1]
+        m1_8 = m1_base[m1_base["threads"] == 8]
         t4_cpu = gpu_df[(gpu_df["scheme"] == "CIC") & (gpu_df["backend"] == "CPU") & (gpu_df["grid_n"] == 128) &
                         (gpu_df["num_particles"] == np)]
         t4_gpu = gpu_df[(gpu_df["scheme"] == "CIC") & (gpu_df["backend"] == "GPU_Atomics") & (gpu_df["grid_n"] == 128) &
                         (gpu_df["num_particles"] == np)]
         if m1_1.empty or t4_cpu.empty or t4_gpu.empty:
             continue
-        m1_8_ms = m1_8.iloc[0]["deposit_ms"] if not m1_8.empty else float("nan")
+        m1_8_cell = f"{m1_8.iloc[0]['deposit_ms']:.2f}" if not m1_8.empty else "--"
         lines.append(
-            f"{int(np):.0e} & {m1_1.iloc[0]['deposit_ms']:.2f} & {m1_8_ms:.2f} & "
+            f"{int(np):.0e} & {m1_1.iloc[0]['deposit_ms']:.2f} & {m1_8_cell} & "
             f"{t4_cpu.iloc[0]['deposit_ms']:.2f} & {t4_gpu.iloc[0]['deposit_ms']:.2f} \\\\"
         )
     lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}"])

@@ -43,6 +43,32 @@ bool testSchemeChargeConservation(pic::DepositionScheme scheme) {
                       pic::schemeName(scheme) + " charge conservation");
 }
 
+// Regression test: Esirkepov must conserve charge with moving particles
+// (non-zero dt). The static dt=0 path masked a bug where trajectory weights
+// summed to displacement/dx instead of unity, breaking charge conservation
+// whenever particles moved.
+bool testEsirkepovMovingChargeConservation() {
+    pic::Domain domain;
+    domain.Nx = 32;
+    domain.Ny = 32;
+    domain.updateDerived();
+    pic::FieldGrid grid(domain);
+    pic::ParticlesSoA particles(1000);
+    particles.initializeUniformMaxwellian(domain, 1.0, 123);
+
+    pic::DepositionConfig cfg;
+    cfg.scheme = pic::DepositionScheme::Esirkepov;
+    cfg.layout = pic::ParticleLayout::SoA;
+    cfg.esirkepov_dt = 0.01;
+    pic::depositChargeSoA(particles, grid, cfg);
+
+    const double charge_error =
+        pic::chargeConservationError(grid.integratedRho(), particles.totalCharge(),
+                                     std::accumulate(particles.q().begin(), particles.q().end(), 0.0,
+                                                     [](double s, double q) { return s + std::abs(q); }));
+    return expectNear(charge_error, 0.0, 1e-10, "Esirkepov charge conservation (moving, dt=0.01)");
+}
+
 }  // namespace
 
 #ifdef PIC_BUILD_CUDA
@@ -74,6 +100,7 @@ int main() {
     ok &= testSchemeChargeConservation(pic::DepositionScheme::CIC);
     ok &= testSchemeChargeConservation(pic::DepositionScheme::TSC);
     ok &= testSchemeChargeConservation(pic::DepositionScheme::Esirkepov);
+    ok &= testEsirkepovMovingChargeConservation();
     ok &= testSchemeChargeConservation(pic::DepositionScheme::NGP);
 #ifdef PIC_BUILD_CUDA
     ok &= testGpuDeposit(pic::DepositionBackend::GPUAtomics, "GPU CIC atomics charge conservation");

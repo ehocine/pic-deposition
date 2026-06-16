@@ -66,6 +66,21 @@ void esirkepovWeights1DSparse(double x0, double x1, double dx, int n, std::vecto
             cell--;
         }
     }
+
+    // The raw trajectory weights are per-cell path-length fractions that sum to
+    // |x1-x0|/dx, not to unity. Charge deposition requires a partition of unity so
+    // that the total deposited charge equals the particle charge; renormalize so the
+    // weights represent a trajectory-averaged cloud (reduces to CIC for zero motion).
+    double total = 0.0;
+    for (const auto& entry : weights) {
+        total += entry.weight;
+    }
+    if (total > 1e-300) {
+        const double inv_total = 1.0 / total;
+        for (auto& entry : weights) {
+            entry.weight *= inv_total;
+        }
+    }
 }
 
 void esirkepovWeights1D(double x0, double x1, double dx, int n, std::vector<double>& weights) {

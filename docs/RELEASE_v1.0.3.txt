@@ -1,0 +1,21 @@
+PIC Deposition Benchmark Suite v1.0.3
+======================================
+
+Bug-fix and benchmark refresh release.
+
+Changes since v1.0.2
+--------------------
+- Fix Esirkepov deposition: normalize trajectory weights to a partition of unity
+  so deposited charge equals particle charge when particles move (was ~1e-3 error).
+- Add pic_test regression case for Esirkepov with non-zero dt.
+- Fix cross-platform summary table generation (M1 8-thread column no longer nan).
+- Regenerate archived CPU benchmark CSVs on Apple M1 Pro (data/benchmarks/).
+- CITATION.cff: valid cff-version 1.2.0; DOI 10.5281/zenodo.20608073.
+- Add scripts/compile_paper.sh and scripts/compile_cpc_paper.sh.
+- Remove obsolete Zenodo manual-upload helper scripts.
+
+Citation
+--------
+See CITATION.cff in the repository root.
+
+License: MIT
