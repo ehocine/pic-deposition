@@ -3,6 +3,7 @@
 #include "pic/domain.hpp"
 #include "pic/field_grid.hpp"
 #include "pic/particles.hpp"
+#include "pic/physics_studies.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -69,6 +70,53 @@ bool testEsirkepovMovingChargeConservation() {
     return expectNear(charge_error, 0.0, 1e-10, "Esirkepov charge conservation (moving, dt=0.01)");
 }
 
+bool testWarmLangmuirFiniteEnergy() {
+    pic::Domain domain;
+    domain.Nx = 16;
+    domain.Ny = 16;
+    domain.updateDerived();
+    pic::ParticlesSoA particles(100);
+    particles.initializeWarmLangmuirWave(domain, 0.05, 1, 0.1, 42);
+    const double ke = particles.kineticEnergy();
+    if (!std::isfinite(ke) || ke <= 0.0) {
+        std::cerr << "FAIL warm Langmuir: non-finite or zero kinetic energy\n";
+        return false;
+    }
+    std::cout << "PASS warm Langmuir finite energy\n";
+    return true;
+}
+
+bool testLandauDampingSmoke() {
+    const auto rows = pic::runLandauDampingValidation();
+    if (rows.empty()) {
+        std::cerr << "FAIL Landau damping: no results\n";
+        return false;
+    }
+    const double rate = rows[0].damping_rate_measured;
+    if (!std::isfinite(rate) || rate == 0.0) {
+        std::cerr << "FAIL Landau damping: invalid rate " << rate << "\n";
+        return false;
+    }
+    std::cout << "PASS Landau damping non-zero rate\n";
+    return true;
+}
+
+bool testQuasi1DTwoStreamSmoke() {
+    const auto rows = pic::runQuasi1DTwoStreamValidation();
+    if (rows.empty()) {
+        std::cerr << "FAIL quasi-1D two-stream: no results\n";
+        return false;
+    }
+    for (const auto& r : rows) {
+        if (!std::isfinite(r.growth_rate_measured) || r.growth_rate_measured <= 0.0) {
+            std::cerr << "FAIL quasi-1D two-stream: invalid gamma for scheme\n";
+            return false;
+        }
+    }
+    std::cout << "PASS quasi-1D two-stream positive growth\n";
+    return true;
+}
+
 }  // namespace
 
 #ifdef PIC_BUILD_CUDA
@@ -101,6 +149,9 @@ int main() {
     ok &= testSchemeChargeConservation(pic::DepositionScheme::TSC);
     ok &= testSchemeChargeConservation(pic::DepositionScheme::Esirkepov);
     ok &= testEsirkepovMovingChargeConservation();
+    ok &= testWarmLangmuirFiniteEnergy();
+    ok &= testLandauDampingSmoke();
+    ok &= testQuasi1DTwoStreamSmoke();
     ok &= testSchemeChargeConservation(pic::DepositionScheme::NGP);
 #ifdef PIC_BUILD_CUDA
     ok &= testGpuDeposit(pic::DepositionBackend::GPUAtomics, "GPU CIC atomics charge conservation");

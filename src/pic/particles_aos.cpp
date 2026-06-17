@@ -95,6 +95,30 @@ void ParticlesSoA::initializeLangmuirWave(const Domain& domain, double amplitude
     }
 }
 
+void ParticlesSoA::initializeWarmLangmuirWave(const Domain& domain, double amplitude, int mode, double temperature,
+                                              unsigned seed) {
+    std::mt19937 rng(seed);
+    const std::size_t n = x_.size();
+    const double k = 2.0 * M_PI * static_cast<double>(mode) / domain.Lx;
+    const double qp = -1.0 / static_cast<double>(n);
+    const double stdv = std::sqrt(temperature);
+    for (std::size_t i = 0; i < n; ++i) {
+        x_[i] = domain.Lx * static_cast<double>(i) / static_cast<double>(n);
+        y_[i] = 0.5 * domain.Ly;
+        vx_[i] = amplitude * std::sin(k * x_[i]) + sampleNormal(rng, stdv);
+        vy_[i] = sampleNormal(rng, stdv);
+        m_[i] = 1.0;
+        q_[i] = qp;
+    }
+}
+
+void ParticlesAoS::initializeWarmLangmuirWave(const Domain& domain, double amplitude, int mode, double temperature,
+                                              unsigned seed) {
+    ParticlesSoA soa(data_.size());
+    soa.initializeWarmLangmuirWave(domain, amplitude, mode, temperature, seed);
+    data_ = toAoS(soa).data();
+}
+
 void ParticlesAoS::initializeLangmuirWave(const Domain& domain, double amplitude, int mode, unsigned seed) {
     ParticlesSoA soa(data_.size());
     soa.initializeLangmuirWave(domain, amplitude, mode, seed);

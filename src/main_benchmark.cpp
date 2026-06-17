@@ -1,4 +1,5 @@
 #include "benchmark/benchmark_runner.hpp"
+#include "pic/physics_studies.hpp"
 
 #include <ctime>
 #include <filesystem>
@@ -35,8 +36,25 @@ int main(int argc, char** argv) {
         const bool amortized = flag(argc, argv, "--amortized");
         const bool full = flag(argc, argv, "--full");
         const bool include_gpu = flag(argc, argv, "--gpu");
+        const bool physics = flag(argc, argv, "--physics");
+        const bool timeseries_only = flag(argc, argv, "--timeseries");
 
         const auto results_dir = resultsDir();
+
+        if (timeseries_only) {
+            const auto rows = pic::runPhysicsTimeseries();
+            std::ostringstream path;
+            path << results_dir.string() << "/physics_timeseries_" << std::time(nullptr) << ".csv";
+            pic::writePhysicsTimeseriesCsv(path.str(), rows);
+            std::cout << "Wrote " << path.str() << " (" << rows.size() << " rows)\n";
+            return 0;
+        }
+
+        if (physics) {
+            pic::runAllPhysicsStudies(results_dir.string());
+            std::cout << "Wrote physics study CSVs under " << results_dir.string() << '\n';
+            return 0;
+        }
 
         if (timestep) {
             const auto rows = pic::BenchmarkRunner::runTimestepProfiles();

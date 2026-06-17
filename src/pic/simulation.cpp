@@ -19,6 +19,10 @@ Simulation::Simulation(SimulationConfig config)
         if (config_.langmuir_mode) {
             particles_aos_.initializeLangmuirWave(config_.domain, config_.langmuir_amplitude,
                                                   config_.langmuir_mode_number, config_.seed);
+        } else if (config_.landau_mode) {
+            particles_aos_.initializeWarmLangmuirWave(config_.domain, config_.langmuir_amplitude,
+                                                      config_.langmuir_mode_number, config_.landau_temperature,
+                                                      config_.seed);
         } else if (config_.two_stream_mode) {
             particles_aos_.initializeTwoStream(config_.domain, config_.two_stream_beam_velocity,
                                                config_.two_stream_perturbation, config_.seed);
@@ -30,6 +34,10 @@ Simulation::Simulation(SimulationConfig config)
         if (config_.langmuir_mode) {
             particles_soa_.initializeLangmuirWave(config_.domain, config_.langmuir_amplitude,
                                                   config_.langmuir_mode_number, config_.seed);
+        } else if (config_.landau_mode) {
+            particles_soa_.initializeWarmLangmuirWave(config_.domain, config_.langmuir_amplitude,
+                                                      config_.langmuir_mode_number, config_.landau_temperature,
+                                                      config_.seed);
         } else if (config_.two_stream_mode) {
             particles_soa_.initializeTwoStream(config_.domain, config_.two_stream_beam_velocity,
                                                config_.two_stream_perturbation, config_.seed);
@@ -42,7 +50,7 @@ Simulation::Simulation(SimulationConfig config)
 namespace {
 
 void applyBackgroundIfNeeded(const SimulationConfig& config, FieldGrid& grid) {
-    if (config.langmuir_mode || config.two_stream_mode) {
+    if (config.langmuir_mode || config.landau_mode || config.two_stream_mode) {
         const double bg = 1.0 / config.domain.domainVolume();
         for (double& v : grid.rho()) {
             v += bg;
@@ -105,6 +113,8 @@ SimulationResult Simulation::run() {
             }
             const auto diag = computeDiagnostics(grid_, particles_aos_);
             result.energy_history.push_back(diag.total_energy);
+            result.kinetic_energy_history.push_back(diag.kinetic_energy);
+            result.field_energy_history.push_back(diag.field_energy);
             result.charge_error_history.push_back(diag.charge_error);
         } else {
             if (esirkepov) {
@@ -115,6 +125,8 @@ SimulationResult Simulation::run() {
             }
             const auto diag = computeDiagnostics(grid_, particles_soa_);
             result.energy_history.push_back(diag.total_energy);
+            result.kinetic_energy_history.push_back(diag.kinetic_energy);
+            result.field_energy_history.push_back(diag.field_energy);
             result.charge_error_history.push_back(diag.charge_error);
         }
     }
@@ -222,6 +234,8 @@ std::pair<SimulationResult, TimestepProfile> Simulation::runProfiled(int warmup_
             const auto diag = computeDiagnostics(grid_, particles_aos_);
             if (step >= warmup_steps) {
                 result.energy_history.push_back(diag.total_energy);
+                result.kinetic_energy_history.push_back(diag.kinetic_energy);
+                result.field_energy_history.push_back(diag.field_energy);
                 result.charge_error_history.push_back(diag.charge_error);
             }
         } else {
@@ -240,6 +254,8 @@ std::pair<SimulationResult, TimestepProfile> Simulation::runProfiled(int warmup_
             const auto diag = computeDiagnostics(grid_, particles_soa_);
             if (step >= warmup_steps) {
                 result.energy_history.push_back(diag.total_energy);
+                result.kinetic_energy_history.push_back(diag.kinetic_energy);
+                result.field_energy_history.push_back(diag.field_energy);
                 result.charge_error_history.push_back(diag.charge_error);
             }
         }

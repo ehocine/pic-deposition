@@ -53,6 +53,7 @@ std::vector<NoiseGridResult> runNoiseVsGridStudy(std::size_t num_particles);
 void writeNoiseGridCsv(const std::string& path, const std::vector<NoiseGridResult>& rows);
 
 std::vector<TwoStreamValidationResult> runTwoStreamValidationSuite(const SimulationConfig& base_config);
+TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config);
 void writeTwoStreamCsv(const std::string& path, const std::vector<TwoStreamValidationResult>& rows);
 
 }  // namespace pic

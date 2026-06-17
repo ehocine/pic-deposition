@@ -17,8 +17,8 @@ keywords:
   - high performance computing
   - CUDA
   - OpenMP
-version: 1.0.3
-date-released: "2026-06-16"
+version: 1.0.4
+date-released: "2026-06-17"
 identifiers:
   - type: doi
     value: 10.5281/zenodo.20608073

@@ -28,6 +28,8 @@ struct SimulationConfig {
     bool langmuir_mode = false;
     double langmuir_amplitude = 0.01;
     int langmuir_mode_number = 1;
+    bool landau_mode = false;
+    double landau_temperature = 0.1;
     bool two_stream_mode = false;
     double two_stream_beam_velocity = 0.3;
     double two_stream_perturbation = 0.01;
@@ -45,6 +47,8 @@ struct TimestepProfile {
 
 struct SimulationResult {
     std::vector<double> energy_history;
+    std::vector<double> kinetic_energy_history;
+    std::vector<double> field_energy_history;
     std::vector<double> charge_error_history;
     double initial_energy = 0.0;
     double final_energy = 0.0;

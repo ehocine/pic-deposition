@@ -40,6 +40,7 @@ set(PIC_SOURCES
     src/pic/diagnostics.cpp
     src/pic/simulation.cpp
     src/pic/validation.cpp
+    src/pic/physics_studies.cpp
     src/deposition/deposition.cpp
     src/deposition/ngp.cpp
     src/deposition/cic.cpp

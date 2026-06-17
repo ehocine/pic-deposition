@@ -1,0 +1,25 @@
+PIC Deposition Benchmark Suite v1.0.4
+======================================
+
+Physics validation expansion (Tier 1 + Tier 2).
+
+Changes since v1.0.3
+--------------------
+- Extend SimulationResult with per-step kinetic and field energy histories.
+- Add initializeWarmLangmuirWave for finite-temperature Langmuir modes.
+- New physics_studies module: time-series export, quasi-1D two-stream,
+  Langmuir convergence sweep, Landau damping, multi-seed replication,
+  and production-scale timestep profile.
+- Add pic_benchmark flags --physics and --timeseries.
+- Archive new CSVs: physics_timeseries, langmuir_convergence,
+  two_stream_quasi1d, landau_damping, validation_multi_seed, production_sim.
+- Add figures fig17--fig23 and TeX summary tables in plot_results.py.
+- Fix run_all_benchmarks.sh validation archive glob (exclude multi_seed).
+- Add pic_test smoke tests for warm Langmuir, Landau, and quasi-1D two-stream.
+- Regenerate archived benchmark CSVs and physics validation data on Apple M1 Pro.
+
+Citation
+--------
+See CITATION.cff in the repository root.
+
+License: MIT

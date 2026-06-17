@@ -1,0 +1,2 @@
+num_particles,grid,scheme,sort_interval,steps,push_ms,sort_ms,deposit_ms,poisson_ms,gather_ms,total_ms,energy_drift,max_charge_error
+100000,128x128,CIC,10,500,0.450963406,1.945344,0.724018336,0.088985524,0.62381613,3.833127396,-0.003549644148,3.312350394e-17

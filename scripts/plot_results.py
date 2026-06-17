@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 
@@ -21,6 +22,12 @@ ARCHIVED_NAMES = {
     "two_stream_validation_": "two_stream_validation.csv",
     "amortized_timestep_": "amortized_timestep.csv",
     "noise_vs_grid_": "noise_vs_grid.csv",
+    "physics_timeseries_": "physics_timeseries.csv",
+    "langmuir_convergence_": "langmuir_convergence.csv",
+    "two_stream_quasi1d_": "two_stream_quasi1d.csv",
+    "landau_damping_": "landau_damping.csv",
+    "validation_multi_seed_": "validation_multi_seed.csv",
+    "production_sim_": "production_sim.csv",
 }
 
 FLOPS_PER_PARTICLE = {"NGP": 10.0, "CIC": 40.0, "TSC": 90.0, "Esirkepov": 50.0}
@@ -423,6 +430,307 @@ def fig_two_stream(ts_path: Path, out: Path) -> None:
     plt.close()
 
 
+def _load_optional_csv(results_dir: Path, basename: str, prefix: str) -> Path | None:
+    archived = results_dir / basename
+    if archived.exists():
+        return archived
+    try:
+        return resolve_csv(results_dir, prefix)
+    except FileNotFoundError:
+        return None
+
+
+def fig_langmuir_timeseries(pts_path: Path, out: Path) -> None:
+    if pts_path is None or not pts_path.exists():
+        return
+    df = pd.read_csv(pts_path)
+    sub = df[df["test"] == "langmuir"]
+    if sub.empty:
+        return
+    plt.figure(figsize=(7, 4.5))
+    for scheme in ["NGP", "CIC", "TSC", "Esirkepov"]:
+        s = sub[sub["scheme"] == scheme]
+        if s.empty:
+            continue
+        step = s["step"].values
+        stride = max(1, len(step) // 2000)
+        plt.plot(s["time"].values[::stride], s["field_energy"].values[::stride], label=scheme)
+    plt.xlabel("Time")
+    plt.ylabel("Field energy")
+    plt.title("Langmuir wave field energy (all schemes)")
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig(out, format="pdf")
+    plt.close()
+
+
+def fig_twostream_logE(pts_path: Path, out: Path) -> None:
+    if pts_path is None or not pts_path.exists():
+        return
+    df = pd.read_csv(pts_path)
+    sub = df[df["test"] == "twostream"]
+    if sub.empty:
+        return
+    plt.figure(figsize=(7, 4.5))
+    for scheme in ["NGP", "CIC", "TSC", "Esirkepov"]:
+        s = sub[sub["scheme"] == scheme]
+        if s.empty:
+            continue
+        e = s["field_energy"].values
+        t = s["time"].values
+        e = np.maximum(e, 1e-30)
+        plt.plot(t, np.log(e), label=scheme)
+    plt.xlabel("Time")
+    plt.ylabel("ln(field energy)")
+    plt.title("Two-stream growth (log field energy)")
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig(out, format="pdf")
+    plt.close()
+
+
+def fig_energy_budget(pts_path: Path, out: Path) -> None:
+    if pts_path is None or not pts_path.exists():
+        return
+    df = pd.read_csv(pts_path)
+    sub = df[(df["test"] == "conservation") & (df["scheme"].isin(["CIC", "Esirkepov"]))]
+    if sub.empty:
+        return
+    plt.figure(figsize=(7, 4.5))
+    for scheme in ["CIC", "Esirkepov"]:
+        s = sub[sub["scheme"] == scheme]
+        if s.empty:
+            continue
+        stride = max(1, len(s) // 500)
+        t = s["time"].values[::stride]
+        plt.plot(t, s["kinetic_energy"].values[::stride], "--", label=f"{scheme} kin")
+        plt.plot(t, s["field_energy"].values[::stride], ":", label=f"{scheme} field")
+        plt.plot(t, s["total_energy"].values[::stride], "-", label=f"{scheme} total")
+    plt.xlabel("Time")
+    plt.ylabel("Energy")
+    plt.title("Energy budget (2000-step conservation run)")
+    plt.legend(fontsize=7)
+    plt.tight_layout()
+    plt.savefig(out, format="pdf")
+    plt.close()
+
+
+def fig_conservation_timeseries(pts_path: Path, out: Path) -> None:
+    if pts_path is None or not pts_path.exists():
+        return
+    df = pd.read_csv(pts_path)
+    sub = df[df["test"] == "conservation"]
+    if sub.empty:
+        return
+    fig, ax1 = plt.subplots(figsize=(7, 4.5))
+    scheme = "CIC"
+    s = sub[sub["scheme"] == scheme]
+    if s.empty:
+        scheme = sub["scheme"].iloc[0]
+        s = sub[sub["scheme"] == scheme]
+    stride = max(1, len(s) // 500)
+    t = s["time"].values[::stride]
+    ax1.plot(t, s["charge_error"].values[::stride], "b-", label="Charge error")
+    ax1.set_xlabel("Time")
+    ax1.set_ylabel("Charge error", color="b")
+    ax2 = ax1.twinx()
+    ax2.plot(t, s["total_energy"].values[::stride], "r-", label="Total energy")
+    ax2.set_ylabel("Total energy", color="r")
+    plt.title(f"Conservation time series ({scheme})")
+    fig.tight_layout()
+    plt.savefig(out, format="pdf")
+    plt.close()
+
+
+def fig_langmuir_convergence(lc_path: Path, out: Path) -> None:
+    if lc_path is None or not lc_path.exists():
+        return
+    df = pd.read_csv(lc_path)
+    cic = df[df["scheme"] == "CIC"]
+    if cic.empty:
+        cic = df
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4))
+    for g, grp in cic.groupby("grid_n"):
+        axes[0].plot(grp["num_particles"], grp["omega_measured"], marker="o", label=f"{g}^2")
+    axes[0].set_xscale("log")
+    axes[0].set_xlabel("N_p")
+    axes[0].set_ylabel("omega_measured")
+    axes[0].set_title("Langmuir frequency vs N_p")
+    axes[0].legend(fontsize=8)
+    axes[0].grid(True, ls="--", alpha=0.4)
+    np_ref = cic["num_particles"].median()
+    gsub = cic[cic["num_particles"] == np_ref] if np_ref in cic["num_particles"].values else cic
+    if gsub.empty:
+        gsub = cic
+    for np, grp in gsub.groupby("num_particles"):
+        axes[1].plot(grp["grid_n"], grp["omega_measured"], marker="o", label=f"{int(np):.0e}")
+    axes[1].set_xlabel("Grid N")
+    axes[1].set_ylabel("omega_measured")
+    axes[1].set_title("Langmuir frequency vs grid")
+    axes[1].legend(fontsize=8)
+    axes[1].grid(True, ls="--", alpha=0.4)
+    fig.tight_layout()
+    plt.savefig(out, format="pdf")
+    plt.close()
+
+
+def fig_twostream_geometry(ts2d_path: Path, q1d_path: Path, out: Path) -> None:
+    if ts2d_path is None or not ts2d_path.exists():
+        return
+    df2 = pd.read_csv(ts2d_path)
+    rows = []
+    for _, r in df2.iterrows():
+        rows.append({"geometry": "2D 64^2", "scheme": r["scheme"],
+                     "ratio": r["growth_rate_over_omega_p"]})
+    if q1d_path is not None and q1d_path.exists():
+        df1 = pd.read_csv(q1d_path)
+        for _, r in df1.iterrows():
+            rows.append({"geometry": "quasi-1D", "scheme": r["scheme"],
+                         "ratio": r["growth_rate_over_omega_p"]})
+    if not rows:
+        return
+    sdf = pd.DataFrame(rows)
+    order = ["NGP", "CIC", "TSC", "Esirkepov"]
+    geoms = ["2D 64^2", "quasi-1D"]
+    x = range(len(order))
+    width = 0.35
+    plt.figure(figsize=(7, 4.5))
+    for i, geom in enumerate(geoms):
+        g = sdf[sdf["geometry"] == geom].set_index("scheme").reindex(order)
+        if g["ratio"].isna().all():
+            continue
+        offset = (i - 0.5) * width
+        plt.bar([xi + offset for xi in x], g["ratio"].values, width=width, label=geom)
+    plt.xticks(list(x), order)
+    plt.ylabel("gamma / omega_p")
+    plt.title("Two-stream growth: 2D vs quasi-1D")
+    plt.axhline(0.71, color="gray", ls="--", lw=0.8, label="1D theory ~0.71")
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig(out, format="pdf")
+    plt.close()
+
+
+def fig_landau_damping(ld_path: Path, pts_path: Path, out: Path) -> None:
+    if ld_path is None or not ld_path.exists():
+        return
+    df = pd.read_csv(ld_path)
+    cic = df[df["scheme"] == "CIC"]
+    if cic.empty:
+        cic = df.iloc[[0]]
+    row = cic.iloc[0]
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4))
+    if pts_path is not None and pts_path.exists():
+        pts = pd.read_csv(pts_path)
+        sub = pts[(pts["test"] == "landau") & (pts["scheme"] == "CIC")]
+        if sub.empty:
+            sub = pts[(pts["test"] == "langmuir") & (pts["scheme"] == "CIC")]
+        if not sub.empty:
+            stride = max(1, len(sub) // 1000)
+            axes[0].plot(sub["time"].values[::stride], sub["field_energy"].values[::stride])
+            axes[0].set_xlabel("Time")
+            axes[0].set_ylabel("Field energy")
+            axes[0].set_title("Warm Langmuir field energy (CIC)")
+    schemes = df["scheme"].tolist()
+    meas = df["damping_rate_measured"].tolist()
+    theory = df["damping_rate_theory"].tolist()
+    x = range(len(schemes))
+    w = 0.35
+    axes[1].bar([i - w / 2 for i in x], meas, width=w, label="Measured")
+    axes[1].bar([i + w / 2 for i in x], theory, width=w, label="Theory")
+    axes[1].set_xticks(list(x), schemes, rotation=15)
+    axes[1].set_ylabel("Damping rate")
+    axes[1].set_title("Landau damping (CIC ratio={:.2f})".format(row.get("damping_ratio", 0)))
+    axes[1].legend(fontsize=8)
+    fig.tight_layout()
+    plt.savefig(out, format="pdf")
+    plt.close()
+
+
+def write_langmuir_convergence_summary(lc_path: Path, out: Path) -> None:
+    if lc_path is None or not lc_path.exists():
+        return
+    df = pd.read_csv(lc_path)
+    cic = df[(df["scheme"] == "CIC") & (df["grid_n"] == 128) & (df["num_particles"] == 200)]
+    if cic.empty:
+        cic = df[df["scheme"] == "CIC"].head(1)
+    if cic.empty:
+        return
+    r = cic.iloc[0]
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\small",
+        r"\caption{Langmuir convergence at $128^2$, $N_p=200$ (CIC).}",
+        r"\label{tab:langmuir_conv}",
+        r"\begin{tabular}{lrr}",
+        r"\toprule",
+        r"Quantity & Value & Note \\",
+        r"\midrule",
+        rf"$\omega_{{\mathrm{{meas}}}}$ & {r['omega_measured']:.4f} & CIC \\",
+        rf"$\omega_{{\mathrm{{meas}}}}/\omega_{{p,\mathrm{{macro}}}}$ & {r['omega_ratio']:.2f} & converged value \\",
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\end{table}",
+    ]
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_twostream_geometry_summary(ts2d_path: Path, q1d_path: Path, out: Path) -> None:
+    if ts2d_path is None or q1d_path is None:
+        return
+    if not ts2d_path.exists() or not q1d_path.exists():
+        return
+    df2 = pd.read_csv(ts2d_path)
+    df1 = pd.read_csv(q1d_path)
+    c2 = df2[df2["scheme"] == "CIC"].iloc[0]
+    c1 = df1[df1["scheme"] == "CIC"].iloc[0]
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\small",
+        r"\caption{Two-stream $\gamma/\omega_p$: 2D vs quasi-1D (CIC).}",
+        r"\label{tab:twostream_geom}",
+        r"\begin{tabular}{lrr}",
+        r"\toprule",
+        r"Geometry & $\gamma/\omega_p$ & Pass \\",
+        r"\midrule",
+        rf"2D $64^2$ & {c2['growth_rate_over_omega_p']:.1f} & {'yes' if int(c2.get('passed', 0)) else 'no'} \\",
+        rf"Quasi-1D $256\times4$ & {c1['growth_rate_over_omega_p']:.1f} & {'yes' if int(c1.get('passed', 0)) else 'no'} \\",
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\end{table}",
+    ]
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_landau_summary(ld_path: Path, out: Path) -> None:
+    if ld_path is None or not ld_path.exists():
+        return
+    df = pd.read_csv(ld_path)
+    cic = df[df["scheme"] == "CIC"]
+    if cic.empty:
+        return
+    r = cic.iloc[0]
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\small",
+        r"\caption{Landau damping rates (warm Langmuir, CIC).}",
+        r"\label{tab:landau}",
+        r"\begin{tabular}{lrr}",
+        r"\toprule",
+        r"Quantity & Measured & Theory \\",
+        r"\midrule",
+        rf"Damping rate & {r['damping_rate_measured']:.4f} & {r['damping_rate_theory']:.4f} \\",
+        rf"$k\lambda_D$ & {r['k_lambda_d']:.3f} & -- \\",
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\end{table}",
+    ]
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def load_gpu_data(results_dir: Path) -> pd.DataFrame | None:
     gpu_path = results_dir / "benchmark_gpu.csv"
     if not gpu_path.exists():
@@ -701,6 +1009,22 @@ def main() -> None:
         pass
     fig_two_stream(tw_path, args.figures_dir / "fig14_two_stream.pdf")
     write_two_stream_summary(tw_path, args.figures_dir / "two_stream_summary.tex")
+
+    pts_path = _load_optional_csv(results_dir, "physics_timeseries.csv", "physics_timeseries_")
+    lc_path = _load_optional_csv(results_dir, "langmuir_convergence.csv", "langmuir_convergence_")
+    q1d_path = _load_optional_csv(results_dir, "two_stream_quasi1d.csv", "two_stream_quasi1d_")
+    ld_path = _load_optional_csv(results_dir, "landau_damping.csv", "landau_damping_")
+
+    fig_langmuir_timeseries(pts_path, args.figures_dir / "fig17_langmuir_timeseries.pdf")
+    fig_twostream_logE(pts_path, args.figures_dir / "fig18_twostream_logE.pdf")
+    fig_energy_budget(pts_path, args.figures_dir / "fig19_energy_budget.pdf")
+    fig_conservation_timeseries(pts_path, args.figures_dir / "fig20_conservation_timeseries.pdf")
+    fig_langmuir_convergence(lc_path, args.figures_dir / "fig21_langmuir_convergence.pdf")
+    fig_twostream_geometry(tw_path, q1d_path, args.figures_dir / "fig22_twostream_geometry.pdf")
+    fig_landau_damping(ld_path, pts_path, args.figures_dir / "fig23_landau_damping.pdf")
+    write_langmuir_convergence_summary(lc_path, args.figures_dir / "langmuir_convergence_summary.tex")
+    write_twostream_geometry_summary(tw_path, q1d_path, args.figures_dir / "twostream_geometry_summary.tex")
+    write_landau_summary(ld_path, args.figures_dir / "landau_summary.tex")
 
     print(f"Generated figures from {csv_path}" + (f" and {sim_path}" if sim_path else ""))
 
