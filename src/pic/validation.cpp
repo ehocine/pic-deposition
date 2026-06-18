@@ -2,6 +2,7 @@
 
 #include "deposition/deposition.hpp"
 #include "pic/diagnostics.hpp"
+#include "pic/field_grid.hpp"
 #include "pic/poisson_fft.hpp"
 #include "pic/simulation.hpp"
 
@@ -52,14 +53,6 @@ double estimateDominantFrequency(const std::vector<double>& signal, double dt) {
     return static_cast<double>(best_k) / (static_cast<double>(n) * dt);
 }
 
-// Macroparticle normalization: |q_p| = 1/N_p, n_0 = N_p/V, omega_p^2 = n_0 q_p^2 / m (m=1).
-double theoreticalPlasmaFrequency(const Domain& domain, std::size_t num_particles) {
-    const double volume = domain.domainVolume();
-    const double n0 = static_cast<double>(num_particles) / volume;
-    const double q_macro = 1.0 / static_cast<double>(num_particles);
-    return std::sqrt(n0 * q_macro * q_macro);
-}
-
 void applyNeutralizingBackground(FieldGrid& grid) {
     const double bg = 1.0 / grid.domain().domainVolume();
     for (double& v : grid.rho()) {
@@ -68,6 +61,141 @@ void applyNeutralizingBackground(FieldGrid& grid) {
 }
 
 }  // namespace
+
+// Macroparticle normalization: |q_p| = 1/N_p, n_0 = N_p/V, omega_p^2 = n_0 q_p^2 / m (m=1).
+double theoreticalPlasmaFrequency(const Domain& domain, std::size_t num_particles) {
+    const double volume = domain.domainVolume();
+    const double n0 = static_cast<double>(num_particles) / volume;
+    const double q_macro = 1.0 / static_cast<double>(num_particles);
+    return std::sqrt(n0 * q_macro * q_macro);
+}
+
+double coldTwoStreamGrowthRate(const Domain& domain, std::size_t num_particles) {
+    // Birdsall & Langdon: peak cold symmetric two-stream growth is omega_p / (2*sqrt(2)).
+    return theoreticalPlasmaFrequency(domain, num_particles) / (2.0 * std::sqrt(2.0));
+}
+
+double resonantBeamVelocity(const Domain& domain, std::size_t num_particles, int mode) {
+    const double omega_p = theoreticalPlasmaFrequency(domain, num_particles);
+    const double k = 2.0 * M_PI * static_cast<double>(mode) / domain.Lx;
+    if (k < 1e-30) {
+        return 0.0;
+    }
+    return omega_p / k;
+}
+
+double landauDampingTheory(const Domain& domain, std::size_t num_particles, int mode, double temperature) {
+    const double omega_p = theoreticalPlasmaFrequency(domain, num_particles);
+    const double k = 2.0 * M_PI * static_cast<double>(mode) / domain.Lx;
+    const double lambda_d = std::sqrt(temperature) / std::max(omega_p, 1e-30);
+    const double kld = k * lambda_d;
+    if (kld < 1e-6) {
+        return 0.0;
+    }
+    const double kld2 = kld * kld;
+    return omega_p * std::sqrt(M_PI / 8.0) * kld2 * std::exp(-1.0 / (2.0 * kld2));
+}
+
+double extractFourierModeAmplitude(const FieldGrid& grid, int mode_x) {
+    const Domain& domain = grid.domain();
+    const int nx = domain.Nx;
+    const int ny = domain.Ny;
+    const double k = 2.0 * M_PI * static_cast<double>(mode_x) / domain.Lx;
+    double re = 0.0;
+    double im = 0.0;
+    for (int j = 0; j < ny; ++j) {
+        for (int i = 0; i < nx; ++i) {
+            const double x = (static_cast<double>(i) + 0.5) * domain.dx;
+            const double ex = grid.Ex()[static_cast<std::size_t>(j * nx + i)];
+            const double phase = k * x;
+            re += ex * std::cos(phase);
+            im += ex * std::sin(phase);
+        }
+    }
+    const double norm = static_cast<double>(nx * ny);
+    re /= norm;
+    im /= norm;
+    return std::sqrt(re * re + im * im);
+}
+
+double estimateInstabilityGrowthRate(const std::vector<double>& signal, double dt, int record_start_step) {
+    if (signal.size() < 8) {
+        return 0.0;
+    }
+    const std::size_t n = signal.size();
+    const std::size_t start = n / 4;
+    const std::size_t end = (3 * n) / 4;
+    if (end <= start + 2) {
+        return 0.0;
+    }
+
+    double sum_t = 0.0;
+    double sum_l = 0.0;
+    double sum_tt = 0.0;
+    double sum_tl = 0.0;
+    int count = 0;
+    for (std::size_t i = start; i < end; ++i) {
+        const double amp = std::max(signal[i], 1e-30);
+        const double t = static_cast<double>(record_start_step + static_cast<int>(i)) * dt;
+        const double l = std::log(amp);
+        sum_t += t;
+        sum_l += l;
+        sum_tt += t * t;
+        sum_tl += t * l;
+        ++count;
+    }
+    const double denom = static_cast<double>(count) * sum_tt - sum_t * sum_t;
+    if (std::abs(denom) < 1e-30) {
+        return 0.0;
+    }
+    return (static_cast<double>(count) * sum_tl - sum_t * sum_l) / denom;
+}
+
+double estimateInstabilityGrowthRateEnvelope(const std::vector<double>& signal, double dt, int record_start_step) {
+    if (signal.size() < 8) {
+        return 0.0;
+    }
+    const std::size_t n = signal.size();
+    const std::size_t window = std::max<std::size_t>(10, n / 50);
+    std::vector<double> envelope(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        double peak = signal[i];
+        const std::size_t i0 = (i > window) ? i - window : 0;
+        const std::size_t i1 = std::min(n - 1, i + window);
+        for (std::size_t j = i0; j <= i1; ++j) {
+            peak = std::max(peak, signal[j]);
+        }
+        envelope[i] = peak;
+    }
+
+    const std::size_t start = n / 4;
+    const std::size_t end = (3 * n) / 4;
+    if (end <= start + 2) {
+        return 0.0;
+    }
+
+    double sum_t = 0.0;
+    double sum_l = 0.0;
+    double sum_tt = 0.0;
+    double sum_tl = 0.0;
+    int count = 0;
+    for (std::size_t i = start; i < end; ++i) {
+        const double amp = std::max(envelope[i], 1e-30);
+        const double t = static_cast<double>(record_start_step + static_cast<int>(i)) * dt;
+        const double l = std::log(amp);
+        sum_t += t;
+        sum_l += l;
+        sum_tt += t * t;
+        sum_tl += t * l;
+        ++count;
+    }
+    const double denom = static_cast<double>(count) * sum_tt - sum_t * sum_t;
+    if (std::abs(denom) < 1e-30) {
+        return 0.0;
+    }
+    const double slope = (static_cast<double>(count) * sum_tl - sum_t * sum_l) / denom;
+    return slope;
+}
 
 LangmuirValidationResult runLangmuirValidation(const SimulationConfig& config) {
     SimulationConfig cfg = config;
@@ -208,46 +336,6 @@ std::vector<ConservationStudyResult> runConservationStudy(const SimulationConfig
     return results;
 }
 
-double estimateGrowthRate(const std::vector<double>& field_energy, double dt, int record_start_step) {
-    if (field_energy.size() < 8) {
-        return 0.0;
-    }
-    const std::size_t n = field_energy.size();
-    const std::size_t start = n / 4;
-    const std::size_t end = (3 * n) / 4;
-    if (end <= start + 2) {
-        return 0.0;
-    }
-
-    double sum_t = 0.0;
-    double sum_l = 0.0;
-    double sum_tt = 0.0;
-    double sum_tl = 0.0;
-    int count = 0;
-    for (std::size_t i = start; i < end; ++i) {
-        const double e = std::max(field_energy[i], 1e-30);
-        const double t = static_cast<double>(record_start_step + static_cast<int>(i)) * dt;
-        const double l = std::log(e);
-        sum_t += t;
-        sum_l += l;
-        sum_tt += t * t;
-        sum_tl += t * l;
-        ++count;
-    }
-    const double denom = static_cast<double>(count) * sum_tt - sum_t * sum_t;
-    if (std::abs(denom) < 1e-30) {
-        return 0.0;
-    }
-    // Field energy scales as exp(2*gamma*t) when mode amplitude ~ exp(gamma*t).
-    const double slope = (static_cast<double>(count) * sum_tl - sum_t * sum_l) / denom;
-    return 0.5 * slope;
-}
-
-double coldTwoStreamGrowthRate(const Domain& domain, std::size_t num_particles) {
-    const double omega_p = theoreticalPlasmaFrequency(domain, num_particles);
-    return omega_p / std::sqrt(2.0);
-}
-
 TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config) {
     SimulationConfig cfg = config;
     cfg.two_stream_mode = true;
@@ -256,9 +344,19 @@ TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config)
 
     Domain domain = cfg.domain;
     domain.updateDerived();
+
+    double beam_velocity = cfg.two_stream_beam_velocity;
+    if (cfg.two_stream_resonant_beams) {
+        beam_velocity = resonantBeamVelocity(domain, cfg.num_particles, 1);
+    }
+
     FieldGrid grid(domain);
     ParticlesSoA particles(cfg.num_particles);
-    particles.initializeTwoStream(domain, cfg.two_stream_beam_velocity, cfg.two_stream_perturbation, cfg.seed);
+    if (cfg.two_stream_quasi_1d) {
+        particles.initializeTwoStreamQuasi1D(domain, beam_velocity, cfg.two_stream_perturbation, cfg.seed);
+    } else {
+        particles.initializeTwoStream(domain, beam_velocity, cfg.two_stream_perturbation, cfg.seed);
+    }
 
     PoissonSolverFFT fft_solver(domain);
     DepositionConfig dep = cfg.deposition;
@@ -268,11 +366,10 @@ TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config)
     dep.esirkepov_dt = domain.dt;
 
     const int record_start = domain.steps / 4;
-    std::vector<double> field_energy;
-    field_energy.reserve(static_cast<std::size_t>(domain.steps - record_start));
+    std::vector<double> mode_amplitude;
+    mode_amplitude.reserve(static_cast<std::size_t>(domain.steps - record_start));
 
     const bool esirkepov = dep.scheme == DepositionScheme::Esirkepov;
-    // Shared solve/gather; deposition uses scheme-native push/deposit split.
     for (int step = 0; step < domain.steps; ++step) {
         if (esirkepov) {
             depositChargeSoA(particles, grid, dep);
@@ -285,7 +382,7 @@ TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config)
         fft_solver.solve(grid);
         gatherFieldsSoA(particles, grid, domain.dt);
         if (step >= record_start) {
-            field_energy.push_back(grid.fieldEnergy());
+            mode_amplitude.push_back(extractFourierModeAmplitude(grid, 1));
         }
     }
 
@@ -294,7 +391,9 @@ TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config)
     const double omega_p = theoreticalPlasmaFrequency(domain, cfg.num_particles);
     result.omega_p_macro = omega_p;
     result.growth_rate_theory = coldTwoStreamGrowthRate(domain, cfg.num_particles);
-    result.growth_rate_measured = estimateGrowthRate(field_energy, domain.dt, record_start);
+    const double slope = estimateInstabilityGrowthRate(mode_amplitude, domain.dt, record_start);
+    // Mode-amplitude slope is gamma/omega_p; convert to physical growth rate.
+    result.growth_rate_measured = slope * omega_p;
     if (result.growth_rate_theory > 0.0) {
         result.growth_rate_ratio = result.growth_rate_measured / result.growth_rate_theory;
     }

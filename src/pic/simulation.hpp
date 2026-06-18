@@ -31,6 +31,8 @@ struct SimulationConfig {
     bool landau_mode = false;
     double landau_temperature = 0.1;
     bool two_stream_mode = false;
+    bool two_stream_resonant_beams = true;
+    bool two_stream_quasi_1d = false;
     double two_stream_beam_velocity = 0.3;
     double two_stream_perturbation = 0.01;
 };

@@ -132,6 +132,13 @@ void ParticlesAoS::initializeTwoStream(const Domain& domain, double beam_velocit
     data_ = toAoS(soa).data();
 }
 
+void ParticlesAoS::initializeTwoStreamQuasi1D(const Domain& domain, double beam_velocity, double perturbation,
+                                              unsigned seed) {
+    ParticlesSoA soa(data_.size());
+    soa.initializeTwoStreamQuasi1D(domain, beam_velocity, perturbation, seed);
+    data_ = toAoS(soa).data();
+}
+
 void ParticlesSoA::initializeTwoStream(const Domain& domain, double beam_velocity, double perturbation,
                                        unsigned seed) {
     std::mt19937 rng(seed);
@@ -143,6 +150,26 @@ void ParticlesSoA::initializeTwoStream(const Domain& domain, double beam_velocit
     for (std::size_t i = 0; i < n; ++i) {
         x_[i] = ux(rng);
         y_[i] = uy(rng);
+        const double sign = (i < n / 2) ? 1.0 : -1.0;
+        const double pert = perturbation * std::sin(k * x_[i]);
+        vx_[i] = sign * beam_velocity + pert;
+        vy_[i] = 0.0;
+        m_[i] = 1.0;
+        q_[i] = qp;
+    }
+}
+
+void ParticlesSoA::initializeTwoStreamQuasi1D(const Domain& domain, double beam_velocity, double perturbation,
+                                              unsigned seed) {
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<double> ux(0.0, domain.Lx);
+    const std::size_t n = x_.size();
+    const double qp = -1.0 / static_cast<double>(n);
+    const double k = 2.0 * M_PI / domain.Lx;
+    const double y0 = 0.5 * domain.Ly;
+    for (std::size_t i = 0; i < n; ++i) {
+        x_[i] = ux(rng);
+        y_[i] = y0;
         const double sign = (i < n / 2) ? 1.0 : -1.0;
         const double pert = perturbation * std::sin(k * x_[i]);
         vx_[i] = sign * beam_velocity + pert;

@@ -604,7 +604,7 @@ def fig_twostream_geometry(ts2d_path: Path, q1d_path: Path, out: Path) -> None:
     plt.xticks(list(x), order)
     plt.ylabel("gamma / omega_p")
     plt.title("Two-stream growth: 2D vs quasi-1D")
-    plt.axhline(0.71, color="gray", ls="--", lw=0.8, label="1D theory ~0.71")
+    plt.axhline(1.0 / (2.0 * np.sqrt(2.0)), color="gray", ls="--", lw=0.8, label=r"1D peak $\approx 0.35$")
     plt.legend(fontsize=8)
     plt.tight_layout()
     plt.savefig(out, format="pdf")
@@ -695,8 +695,8 @@ def write_twostream_geometry_summary(ts2d_path: Path, q1d_path: Path, out: Path)
         r"\toprule",
         r"Geometry & $\gamma/\omega_p$ & Pass \\",
         r"\midrule",
-        rf"2D $64^2$ & {c2['growth_rate_over_omega_p']:.1f} & {'yes' if int(c2.get('passed', 0)) else 'no'} \\",
-        rf"Quasi-1D $256\times4$ & {c1['growth_rate_over_omega_p']:.1f} & {'yes' if int(c1.get('passed', 0)) else 'no'} \\",
+        rf"2D $64^2$ & {c2['growth_rate_over_omega_p']:.2f} & {'yes' if int(c2.get('passed', 0)) else 'no'} \\",
+        rf"Quasi-1D $256\times1$ & {c1['growth_rate_over_omega_p']:.2f} & {'yes' if int(c1.get('passed', 0)) else 'no'} \\",
         r"\bottomrule",
         r"\end{tabular}",
         r"\end{table}",
@@ -723,6 +723,7 @@ def write_landau_summary(ld_path: Path, out: Path) -> None:
         r"Quantity & Measured & Theory \\",
         r"\midrule",
         rf"Damping rate & {r['damping_rate_measured']:.4f} & {r['damping_rate_theory']:.4f} \\",
+        rf"$\gamma_{{\mathrm{{meas}}}}/\gamma_L$ & {r.get('damping_ratio', float('nan')):.2f} & -- \\",
         rf"$k\lambda_D$ & {r['k_lambda_d']:.3f} & -- \\",
         r"\bottomrule",
         r"\end{tabular}",

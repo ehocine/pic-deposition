@@ -33,6 +33,8 @@ public:
     void initializeWarmLangmuirWave(const Domain& domain, double amplitude, int mode, double temperature,
                                     unsigned seed);
     void initializeTwoStream(const Domain& domain, double beam_velocity, double perturbation, unsigned seed);
+    void initializeTwoStreamQuasi1D(const Domain& domain, double beam_velocity, double perturbation,
+                                    unsigned seed);
     double totalCharge() const;
     double kineticEnergy() const;
 
@@ -52,6 +54,8 @@ public:
     void initializeWarmLangmuirWave(const Domain& domain, double amplitude, int mode, double temperature,
                                     unsigned seed);
     void initializeTwoStream(const Domain& domain, double beam_velocity, double perturbation, unsigned seed);
+    void initializeTwoStreamQuasi1D(const Domain& domain, double beam_velocity, double perturbation,
+                                    unsigned seed);
     double totalCharge() const;
     double kineticEnergy() const;
 

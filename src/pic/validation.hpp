@@ -56,4 +56,11 @@ std::vector<TwoStreamValidationResult> runTwoStreamValidationSuite(const Simulat
 TwoStreamValidationResult runTwoStreamValidation(const SimulationConfig& config);
 void writeTwoStreamCsv(const std::string& path, const std::vector<TwoStreamValidationResult>& rows);
 
+double theoreticalPlasmaFrequency(const Domain& domain, std::size_t num_particles);
+double coldTwoStreamGrowthRate(const Domain& domain, std::size_t num_particles);
+double resonantBeamVelocity(const Domain& domain, std::size_t num_particles, int mode = 1);
+double extractFourierModeAmplitude(const FieldGrid& grid, int mode_x);
+double estimateInstabilityGrowthRate(const std::vector<double>& signal, double dt, int record_start_step);
+double landauDampingTheory(const Domain& domain, std::size_t num_particles, int mode, double temperature);
+
 }  // namespace pic

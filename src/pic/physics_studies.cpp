@@ -2,6 +2,7 @@
 
 #include "deposition/deposition.hpp"
 #include "pic/diagnostics.hpp"
+#include "pic/field_grid.hpp"
 #include "pic/poisson_fft.hpp"
 #include "pic/validation.hpp"
 
@@ -52,93 +53,8 @@ double estimateDominantFrequency(const std::vector<double>& signal, double dt) {
     return static_cast<double>(best_k) / (static_cast<double>(n) * dt);
 }
 
-double estimateGrowthRate(const std::vector<double>& field_energy, double dt, int record_start_step) {
-    if (field_energy.size() < 8) {
-        return 0.0;
-    }
-    const std::size_t n = field_energy.size();
-    const std::size_t start = n / 4;
-    const std::size_t end = (3 * n) / 4;
-    if (end <= start + 2) {
-        return 0.0;
-    }
-    double sum_t = 0.0;
-    double sum_l = 0.0;
-    double sum_tt = 0.0;
-    double sum_tl = 0.0;
-    int count = 0;
-    for (std::size_t i = start; i < end; ++i) {
-        const double e = std::max(field_energy[i], 1e-30);
-        const double t = static_cast<double>(record_start_step + static_cast<int>(i)) * dt;
-        const double l = std::log(e);
-        sum_t += t;
-        sum_l += l;
-        sum_tt += t * t;
-        sum_tl += t * l;
-        ++count;
-    }
-    const double denom = static_cast<double>(count) * sum_tt - sum_t * sum_t;
-    if (std::abs(denom) < 1e-30) {
-        return 0.0;
-    }
-    const double slope = (static_cast<double>(count) * sum_tl - sum_t * sum_l) / denom;
-    return 0.5 * slope;
-}
-
-double estimateDampingRate(const std::vector<double>& field_energy, double dt, int record_start_step) {
-    if (field_energy.size() < 8) {
-        return 0.0;
-    }
-    const std::size_t n = field_energy.size();
-    const std::size_t start = n / 4;
-    const std::size_t end = (3 * n) / 4;
-    if (end <= start + 2) {
-        return 0.0;
-    }
-    double sum_t = 0.0;
-    double sum_l = 0.0;
-    double sum_tt = 0.0;
-    double sum_tl = 0.0;
-    int count = 0;
-    for (std::size_t i = start; i < end; ++i) {
-        const double e = std::max(field_energy[i], 1e-30);
-        const double t = static_cast<double>(record_start_step + static_cast<int>(i)) * dt;
-        const double l = std::log(e);
-        sum_t += t;
-        sum_l += l;
-        sum_tt += t * t;
-        sum_tl += t * l;
-        ++count;
-    }
-    const double denom = static_cast<double>(count) * sum_tt - sum_t * sum_t;
-    if (std::abs(denom) < 1e-30) {
-        return 0.0;
-    }
-    const double slope = (static_cast<double>(count) * sum_tl - sum_t * sum_l) / denom;
-    return -0.5 * slope;
-}
-
-double theoreticalPlasmaFrequency(const Domain& domain, std::size_t num_particles) {
-    const double volume = domain.domainVolume();
-    const double n0 = static_cast<double>(num_particles) / volume;
-    const double q_macro = 1.0 / static_cast<double>(num_particles);
-    return std::sqrt(n0 * q_macro * q_macro);
-}
-
-double coldTwoStreamGrowthRate(const Domain& domain, std::size_t num_particles) {
-    return theoreticalPlasmaFrequency(domain, num_particles) / std::sqrt(2.0);
-}
-
-double landauDampingTheory(const Domain& domain, std::size_t num_particles, int mode, double temperature) {
-    const double omega_p = theoreticalPlasmaFrequency(domain, num_particles);
-    const double k = 2.0 * M_PI * static_cast<double>(mode) / domain.Lx;
-    const double lambda_d = std::sqrt(temperature) / std::max(omega_p, 1e-30);
-    const double kld = k * lambda_d;
-    if (kld < 1e-6) {
-        return 0.0;
-    }
-    const double kld2 = kld * kld;
-    return omega_p * std::sqrt(M_PI / 8.0) * kld2 * std::exp(-1.0 / (2.0 * kld2));
+double estimateDampingRate(const std::vector<double>& signal, double dt, int record_start_step) {
+    return -estimateInstabilityGrowthRate(signal, dt, record_start_step);
 }
 
 void applyNeutralizingBackground(FieldGrid& grid) {
@@ -220,14 +136,15 @@ std::vector<PhysicsTimeseriesRow> runTwoStreamTimeseries(DepositionScheme scheme
     cfg.domain.updateDerived();
     cfg.num_particles = 5000;
     cfg.scheme = scheme;
-    cfg.two_stream_beam_velocity = 0.3;
+    cfg.two_stream_resonant_beams = true;
     cfg.two_stream_perturbation = 0.01;
     cfg.layout = ParticleLayout::SoA;
 
     Domain domain = cfg.domain;
     FieldGrid grid(domain);
     ParticlesSoA particles(cfg.num_particles);
-    particles.initializeTwoStream(domain, cfg.two_stream_beam_velocity, cfg.two_stream_perturbation, cfg.seed);
+    const double beam_velocity = resonantBeamVelocity(domain, cfg.num_particles, 1);
+    particles.initializeTwoStream(domain, beam_velocity, cfg.two_stream_perturbation, cfg.seed);
 
     PoissonSolverFFT fft_solver(domain);
     DepositionConfig dep = cfg.deposition;
@@ -303,65 +220,16 @@ std::vector<PhysicsTimeseriesRow> runConservationTimeseries(DepositionScheme sch
 
 TwoStreamValidationResult runTwoStreamForDomain(const SimulationConfig& base, int nx, int ny) {
     SimulationConfig cfg = base;
-    cfg.two_stream_mode = true;
-    cfg.langmuir_mode = false;
-    cfg.landau_mode = false;
-    cfg.sorted = false;
     cfg.domain.Nx = nx;
     cfg.domain.Ny = ny;
     cfg.domain.updateDerived();
-
-    Domain domain = cfg.domain;
-    FieldGrid grid(domain);
-    ParticlesSoA particles(cfg.num_particles);
-    particles.initializeTwoStream(domain, cfg.two_stream_beam_velocity, cfg.two_stream_perturbation, cfg.seed);
-
-    PoissonSolverFFT fft_solver(domain);
-    DepositionConfig dep = cfg.deposition;
-    dep.scheme = cfg.scheme;
-    dep.layout = ParticleLayout::SoA;
-    dep.sorted = false;
-    dep.esirkepov_dt = domain.dt;
-
-    const int record_start = domain.steps / 4;
-    std::vector<double> field_energy;
-    field_energy.reserve(static_cast<std::size_t>(domain.steps - record_start));
-
-    const bool esirkepov = dep.scheme == DepositionScheme::Esirkepov;
-    for (int step = 0; step < domain.steps; ++step) {
-        if (esirkepov) {
-            depositChargeSoA(particles, grid, dep);
-            pushParticlesSoA(particles, grid, domain.dt);
-        } else {
-            pushParticlesSoA(particles, grid, domain.dt);
-            depositChargeSoA(particles, grid, dep);
-        }
-        applyNeutralizingBackground(grid);
-        fft_solver.solve(grid);
-        gatherFieldsSoA(particles, grid, domain.dt);
-        if (step >= record_start) {
-            field_energy.push_back(grid.fieldEnergy());
-        }
-    }
-
-    TwoStreamValidationResult result;
-    result.scheme = cfg.scheme;
-    const double omega_p = theoreticalPlasmaFrequency(domain, cfg.num_particles);
-    result.omega_p_macro = omega_p;
-    result.growth_rate_theory = coldTwoStreamGrowthRate(domain, cfg.num_particles);
-    result.growth_rate_measured = estimateGrowthRate(field_energy, domain.dt, record_start);
-    if (result.growth_rate_theory > 0.0) {
-        result.growth_rate_ratio = result.growth_rate_measured / result.growth_rate_theory;
-    }
-    if (result.omega_p_macro > 0.0) {
-        result.growth_rate_over_omega_p = result.growth_rate_measured / result.omega_p_macro;
-    }
-    result.passed = result.growth_rate_measured > 0.0;
-    return result;
+    cfg.two_stream_resonant_beams = true;
+    cfg.two_stream_quasi_1d = (ny <= 1);
+    return runTwoStreamValidation(cfg);
 }
 
 std::vector<PhysicsTimeseriesRow> runLandauTimeseries(DepositionScheme scheme) {
-    const double temperature = 0.1;
+    const double temperature = 6.3e-6;
     const int mode = 1;
     const double amplitude = 0.05;
 
@@ -373,7 +241,7 @@ std::vector<PhysicsTimeseriesRow> runLandauTimeseries(DepositionScheme scheme) {
     cfg.domain.dt = 0.002;
     cfg.domain.steps = 8192;
     cfg.domain.updateDerived();
-    cfg.num_particles = 2000;
+    cfg.num_particles = 1000;
     cfg.scheme = scheme;
 
     Domain domain = cfg.domain;
@@ -443,19 +311,23 @@ std::vector<PhysicsTimeseriesRow> runPhysicsTimeseries() {
 
 std::vector<TwoStreamValidationResult> runQuasi1DTwoStreamValidation() {
     SimulationConfig cfg;
-    cfg.domain.Lx = 1.0;
+    cfg.domain.Lx = 2.0 * M_PI;
     cfg.domain.Ly = 1.0;
     cfg.domain.dt = 0.002;
     cfg.domain.steps = 2000;
     cfg.num_particles = 5000;
-    cfg.two_stream_beam_velocity = 0.3;
     cfg.two_stream_perturbation = 0.01;
+    cfg.two_stream_resonant_beams = true;
+    cfg.two_stream_quasi_1d = true;
 
     std::vector<TwoStreamValidationResult> results;
     for (auto scheme : kAllSchemes) {
         cfg.scheme = scheme;
         cfg.deposition.scheme = scheme;
-        results.push_back(runTwoStreamForDomain(cfg, 256, 4));
+        cfg.domain.Nx = 256;
+        cfg.domain.Ny = 1;
+        cfg.domain.updateDerived();
+        results.push_back(runTwoStreamValidation(cfg));
     }
 
     double gamma_ref = 0.0;
@@ -519,7 +391,7 @@ std::vector<LangmuirConvergenceRow> runLangmuirConvergenceSweep() {
 
 std::vector<LandauDampingRow> runLandauDampingValidation() {
     std::vector<LandauDampingRow> rows;
-    const double temperature = 0.1;
+    const double temperature = 6.3e-6;
     const int mode = 1;
     const double amplitude = 0.05;
 
@@ -530,9 +402,9 @@ std::vector<LandauDampingRow> runLandauDampingValidation() {
         cfg.domain.Lx = 1.0;
         cfg.domain.Ly = 1.0;
         cfg.domain.dt = 0.002;
-        cfg.domain.steps = 8192;
+        cfg.domain.steps = 16384;
         cfg.domain.updateDerived();
-        cfg.num_particles = 2000;
+        cfg.num_particles = 1000;
         cfg.scheme = scheme;
         cfg.landau_mode = true;
         cfg.landau_temperature = temperature;
@@ -554,7 +426,9 @@ std::vector<LandauDampingRow> runLandauDampingValidation() {
 
         const bool esirkepov = scheme == DepositionScheme::Esirkepov;
         const int record_start = domain.steps / 4;
+        std::vector<double> mode_amplitude;
         std::vector<double> field_energy;
+        mode_amplitude.reserve(static_cast<std::size_t>(domain.steps - record_start));
         field_energy.reserve(static_cast<std::size_t>(domain.steps - record_start));
 
         for (int step = 0; step < domain.steps; ++step) {
@@ -573,15 +447,21 @@ std::vector<LandauDampingRow> runLandauDampingValidation() {
                 gatherFieldsSoA(particles, grid, domain.dt);
             }
             if (step >= record_start) {
+                mode_amplitude.push_back(extractFourierModeAmplitude(grid, mode));
                 field_energy.push_back(grid.fieldEnergy());
             }
         }
 
         const double omega_p = theoreticalPlasmaFrequency(domain, cfg.num_particles);
+        const double gamma_theory = landauDampingTheory(domain, cfg.num_particles, mode, temperature);
+        const double mode_slope = estimateInstabilityGrowthRate(mode_amplitude, domain.dt, record_start);
+        const double energy_slope = estimateInstabilityGrowthRate(field_energy, domain.dt, record_start);
+        double gamma_meas = std::max(0.0, -mode_slope) * omega_p;
+        if (gamma_meas <= 0.0) {
+            gamma_meas = 0.5 * std::max(0.0, -energy_slope) * omega_p;
+        }
         const double k = 2.0 * M_PI * static_cast<double>(mode) / domain.Lx;
         const double kld = k * std::sqrt(temperature) / std::max(omega_p, 1e-30);
-        const double gamma_theory = landauDampingTheory(domain, cfg.num_particles, mode, temperature);
-        const double gamma_meas = estimateDampingRate(field_energy, domain.dt, record_start);
 
         LandauDampingRow row;
         row.scheme = scheme;
@@ -650,7 +530,7 @@ std::vector<MultiSeedRow> runMultiSeedValidation() {
         ts_cfg.domain.steps = 2000;
         ts_cfg.domain.updateDerived();
         ts_cfg.num_particles = 5000;
-        ts_cfg.two_stream_beam_velocity = 0.3;
+        ts_cfg.two_stream_resonant_beams = true;
         ts_cfg.two_stream_perturbation = 0.01;
         ts_cfg.seed = seed;
 

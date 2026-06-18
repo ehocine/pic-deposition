@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
             ts_cfg.domain.steps = 2000;
             ts_cfg.domain.updateDerived();
             ts_cfg.num_particles = 5000;
-            ts_cfg.two_stream_beam_velocity = 0.3;
+            ts_cfg.two_stream_resonant_beams = true;
             ts_cfg.two_stream_perturbation = 0.01;
 
             const auto two_stream = pic::runTwoStreamValidationSuite(ts_cfg);

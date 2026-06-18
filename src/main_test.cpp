@@ -4,6 +4,7 @@
 #include "pic/field_grid.hpp"
 #include "pic/particles.hpp"
 #include "pic/physics_studies.hpp"
+#include "pic/validation.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -101,6 +102,36 @@ bool testLandauDampingSmoke() {
     return true;
 }
 
+bool testTwoStreamModeGrowthUnits() {
+    pic::SimulationConfig cfg;
+    cfg.domain.Nx = 64;
+    cfg.domain.Ny = 64;
+    cfg.domain.Lx = 1.0;
+    cfg.domain.Ly = 1.0;
+    cfg.domain.dt = 0.002;
+    cfg.domain.steps = 2000;
+    cfg.domain.updateDerived();
+    cfg.num_particles = 5000;
+    cfg.scheme = pic::DepositionScheme::CIC;
+    cfg.two_stream_resonant_beams = true;
+    cfg.two_stream_perturbation = 0.01;
+
+    const auto result = pic::runTwoStreamValidation(cfg);
+    const double omega_p = pic::theoreticalPlasmaFrequency(cfg.domain, cfg.num_particles);
+    const double ratio = result.growth_rate_measured / std::max(omega_p, 1e-30);
+    if (!std::isfinite(ratio) || ratio <= 0.0) {
+        std::cerr << "FAIL two-stream growth units: invalid ratio " << ratio << "\n";
+        return false;
+    }
+    // Dimensionless growth should be near cold 1D peak gamma/omega_p ~ 1/(2*sqrt(2)) ~ 0.35.
+    if (ratio < 0.15 || ratio > 0.65) {
+        std::cerr << "FAIL two-stream growth units: gamma/omega_p=" << ratio << " outside [0.15,0.65]\n";
+        return false;
+    }
+    std::cout << "PASS two-stream mode growth gamma/omega_p=" << ratio << "\n";
+    return true;
+}
+
 bool testQuasi1DTwoStreamSmoke() {
     const auto rows = pic::runQuasi1DTwoStreamValidation();
     if (rows.empty()) {
@@ -112,8 +143,13 @@ bool testQuasi1DTwoStreamSmoke() {
             std::cerr << "FAIL quasi-1D two-stream: invalid gamma for scheme\n";
             return false;
         }
+        if (r.growth_rate_over_omega_p < 0.08 || r.growth_rate_over_omega_p > 0.22) {
+            std::cerr << "FAIL quasi-1D two-stream: gamma/omega_p=" << r.growth_rate_over_omega_p
+                      << " outside [0.08,0.22]\n";
+            return false;
+        }
     }
-    std::cout << "PASS quasi-1D two-stream positive growth\n";
+    std::cout << "PASS quasi-1D two-stream gamma/omega_p in 1D band\n";
     return true;
 }
 
@@ -151,6 +187,7 @@ int main() {
     ok &= testEsirkepovMovingChargeConservation();
     ok &= testWarmLangmuirFiniteEnergy();
     ok &= testLandauDampingSmoke();
+    ok &= testTwoStreamModeGrowthUnits();
     ok &= testQuasi1DTwoStreamSmoke();
     ok &= testSchemeChargeConservation(pic::DepositionScheme::NGP);
 #ifdef PIC_BUILD_CUDA

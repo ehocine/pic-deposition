@@ -58,6 +58,8 @@ bash scripts/kaggle_gpu_benchmark.sh
 
 ```bash
 ./build/pic_benchmark --validate      # Langmuir + conservation + two-stream + noise grid
+./build/pic_benchmark --physics         # time series, convergence, quasi-1D, Landau, multi-seed
+./build/pic_benchmark --timeseries      # physics time-series CSV only
 ./build/pic_benchmark --timestep      # full PIC timestep breakdown
 ./build/pic_benchmark --amortized       # sort-interval sweep
 ./build/pic_benchmark --conservation    # 2000-step conservation study
@@ -95,7 +97,7 @@ If you use this code or benchmark data in published work, please cite:
   title = {PIC Deposition Benchmark Suite},
   year = {2026},
   url = {https://github.com/ehocine/pic-deposition},
-  version = {1.0.3},
+  version = {1.0.5},
   doi = {10.5281/zenodo.20608073}
 }
 ```

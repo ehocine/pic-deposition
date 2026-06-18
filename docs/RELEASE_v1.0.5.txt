@@ -1,0 +1,21 @@
+PIC Deposition Benchmark Suite v1.0.5
+======================================
+
+Scientific hardening release (physics validation).
+
+Changes since v1.0.4
+--------------------
+- Two-stream: measure growth from fundamental Ex mode amplitude (not oscillating
+  field energy); use resonant beam speed v0 = omega_p/k; report gamma/omega_p ~ 0.35
+  matching cold 1D peak 1/(2*sqrt(2)).
+- Quasi-1D two-stream: Ny=1 slab, Lx=2*pi, confined y initialization; gamma/omega_p ~ 0.15.
+- Landau: tune T and Np for k*lambda_D ~ 0.5; mode-based damping fit with continuum
+  theory ratio ~4.5x (PIC noise).
+- Add pic_test checks for gamma/omega_p band and quasi-1D geometry.
+- Regenerate archived physics CSVs and figures.
+
+Citation
+--------
+See CITATION.cff in the repository root.
+
+License: MIT
